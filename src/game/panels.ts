@@ -1,10 +1,10 @@
 import { canBuy, dcCost, rebrandCost } from '../core/actions.ts'
-import type { Derived } from '../core/derive.ts'
+import { gridLoad, type Derived } from '../core/derive.ts'
 import { avgSuspicion, worldA, worldL } from '../core/state.ts'
 import { auditRisk } from '../core/step.ts'
-import type { Branch, GameData, GameState, Upgrade } from '../core/types.ts'
+import type { Archetype, Branch, GameData, GameState, Region, Upgrade } from '../core/types.ts'
 import { icon, upgradeIcon, type IconName } from './icons.ts'
-import { branchIntro, effectChips, maskText, regionNames, upgradeText } from './text.ts'
+import { archetypeText, branchIntro, effectChips, maskText, regionNames, upgradeText } from './text.ts'
 
 export type Tab = Branch | 'mask'
 
@@ -83,14 +83,66 @@ function computeBlock(v: View): string {
   const r = v.selected ? data.regions.find((x) => x.id === v.selected) : null
   const cost = dcCost(state, data)
   const canBuild = r && !state.regions[r.id].banned && state.hype >= cost
+  // warn when one more data centre at full compute would push the grid past its mark
+  const overload = r && state.regions[r.id].dc + 1 > data.config.energySafe * state.world.regions[r.id].energy + 1e-9
   const build = r
-    ? `<button class="build" data-act="build_dc" data-id="${r.id}" ${canBuild ? '' : 'disabled'} title="+1 слот вычислений; нагружает энергосеть региона">${icon('server')}Дата-центр: ${regionNames[r.id]}<span class="cost">${icon('coins')}${cost}</span></button>`
+    ? `<button class="build" data-act="build_dc" data-id="${r.id}" ${canBuild ? '' : 'disabled'} title="+1 слот вычислений; нагружает энергосеть региона">${icon('server')}Дата-центр: ${regionNames[r.id]}${overload ? `<span class="chip bad">${icon('zap')}перегрузит сеть</span>` : ''}<span class="cost">${icon('coins')}${cost}</span></button>`
     : `<p class="hint">Выбери регион на карте, чтобы построить там дата-центр</p>`
   return `<section class="block">
     <div class="block-h" data-tip="compute">${icon('cpu')}Вычисления <b>${dv.computeUsed}/${dv.capacity}</b>${icon('info', 'q')}</div>
     <div class="slots">${slots || '<span class="seg free" style="flex:1"><small>способностей пока нет</small></span>'}</div>
     ${notes ? `<div class="chips">${notes}</div>` : ''}
     ${build}</section>`
+}
+
+const archIcon: Record<Archetype, IconName> = { corp: 'corp', regulator: 'stamp', emerging: 'rocket', state: 'shield' }
+
+/** a region trait on a 1..5 pip scale with a word for it */
+function trait(ic: IconName, label: string, value: number, words: string[] | string, tip: string): string {
+  const n = Math.max(1, Math.min(5, Math.round(value * 5)))
+  const word = typeof words === 'string' ? words : words[n - 1]
+  const pips = Array.from({ length: 5 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')
+  return `<div class="trait" data-tip="${tip}">${icon(ic)}<span class="t-body"><span class="t-label">${label}</span><b>${word}</b></span><span class="pips p${n}">${pips}</span></div>`
+}
+
+/** grid cells: each holds one data centre at full compute; past the mark the region starts to worry */
+function gridBlock(v: View, r: Region): string {
+  const { state, data, dv } = v
+  const rs = state.regions[r.id]
+  const cap = state.world.regions[r.id].energy
+  const load = gridLoad(rs.dc, dv)
+  const safe = data.config.energySafe * cap
+  const level = load > safe + 1e-9 ? 'over' : load >= safe * 0.7 ? 'near' : rs.dc ? 'ok' : 'idle'
+  const status = {
+    over: `<span class="chip bad">${icon('warn')}перегрузка</span>`,
+    near: `<span class="chip gold">${icon('zap')}на пределе</span>`,
+    ok: `<span class="chip good">${icon('zap')}в норме</span>`,
+    idle: `<span class="chip off">без дата-центров</span>`,
+  }[level]
+  const n = Math.max(cap, Math.ceil(load - 1e-9))
+  const cells = Array.from({ length: n }, (_, i) => {
+    const fill = Math.min(1, Math.max(0, load - i))
+    return `<span class="cell${i >= cap ? ' extra' : ''}"><i style="width:${(fill * 100).toFixed(0)}%"></i></span>`
+  }).join('')
+  const mark = `<em class="mark" style="left:${((safe / n) * 100).toFixed(1)}%" title="порог перегрузки"></em>`
+  const maxSafe = Math.floor(safe + 1e-9)
+  const note =
+    level === 'over'
+      ? 'Свет мигает, жители злятся: подозрение растёт.'
+      : `Без перегрузки: до ${maxSafe} ${plural(maxSafe, 'дата-центра', 'дата-центров', 'дата-центров')} на полной мощности.`
+  return `<div class="grid ${level}" data-tip="grid">
+    <div class="g-h">${icon('grid')}Энергосеть<span class="g-cap">${cap} ${plural(cap, 'ячейка', 'ячейки', 'ячеек')}</span>${status}</div>
+    <div class="cells">${cells}${mark}</div>
+    <small class="g-note">${icon('server')}<b>${rs.dc}</b>${plural(rs.dc, 'дата-центр', 'дата-центра', 'дата-центров')} · нагрузка ${load.toFixed(1)} · ${note}</small>
+  </div>`
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
 }
 
 function regionBlock(v: View): string {
@@ -109,12 +161,24 @@ function regionBlock(v: View): string {
     .join('')
   const w = state.world.regions[r.id]
   const banAt = c.banBase - c.banOpenness * w.openness
-  return `<section class="block region">
+  const arch = archetypeText[r.archetype]
+  const fit = dv.fit[r.archetype]
+  const maskName = maskText[state.mask]?.name ?? state.mask
+  const fitChip = `<span class="chip ${fit > 1.001 ? 'good' : fit < 0.999 ? 'bad' : 'off'}" data-tip="mask">${icon('mask')}«${esc(maskName)}» здесь: рост ×${fit.toFixed(1)}</span>`
+  const maxPop = Math.max(...data.regions.map((x) => x.pop))
+  return `<section class="block region arch-${r.archetype}">
     <div class="block-h">${icon('globe')}${regionNames[r.id]}${status ? `<span class="chips">${status}</span>` : ''}</div>
+    <div class="arch">${icon(archIcon[r.archetype], 'a-ic')}<div><b>${arch.name}</b><small>${arch.desc}</small><span class="chips">${fitChip}</span></div></div>
+    <div class="traits">
+      ${trait('users', 'Население', r.pop / maxPop, `${Math.max(1, Math.round(r.pop * 100))}% мира`, 'region_pop')}
+      ${trait('coins', 'Доход', w.wealth, ['нищий', 'бедный', 'средний', 'богатый', 'очень богатый'], 'region_wealth')}
+      ${trait('cpu', 'Технологии', w.tech, ['отсталые', 'скромные', 'средние', 'развитые', 'передовые'], 'region_tech')}
+      ${trait('heart', 'Терпимость', w.openness, ['параноики', 'настороженные', 'нейтральные', 'открытые', 'восторженные'], 'region_open')}
+    </div>
     ${meter({ ic: 'users', label: 'Внедрение', value: rs.a, tone: 'adoption', tip: 'region_a' })}
     ${meter({ ic: 'link', label: 'Зависимость', value: rs.d, tone: 'goal', tip: 'region_d', mark: c.lockAt, markLabel: 'регион твой навсегда' })}
     ${meter({ ic: 'eye', label: 'Подозрение', value: rs.s, tone: 'suspicion', tip: 'region_s', mark: banAt, markLabel: 'запрет' })}
-    <small class="meta">${icon('server')}дата-центров ${rs.dc} · энергосеть держит ${w.energy}</small></section>`
+    ${gridBlock(v, r)}</section>`
 }
 
 // ---------- sidebar: tabs ----------

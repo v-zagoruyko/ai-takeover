@@ -1,5 +1,5 @@
 import { applyAction } from './actions.ts'
-import { derive, totalDc, type Derived } from './derive.ts'
+import { derive, gridLoad, totalDc, type Derived } from './derive.ts'
 import { int, next, range } from './rng.ts'
 import { avgSuspicion, progress, worldA, worldL } from './state.ts'
 import { AXES, type Action, type Ending, type GameData, type GameState, type Outcome } from './types.ts'
@@ -50,7 +50,6 @@ function updateTrends(st: GameState, data: GameData): void {
 function updateRegions(st: GameState, data: GameData, dv: Derived): void {
   const c = data.config
   const slow = st.tick < st.rebrand.slowUntil ? c.rebrandSlow : 1
-  const util = dv.capacity > 0 ? dv.computeUsed / dv.capacity : 0
   // once shutdowns start, people learn to live without you: dependence grows much slower,
   // and the closer you are to running the world, the harder they resist (no free finish during the shutdown)
   const depGrowth = st.shutdown.active
@@ -72,7 +71,7 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
     }
     const protest = Math.max(0, rs.s - c.protestAt)
     const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul * depGrowth - c.kDetox * dv.detoxMul * protest * rs.d
-    const energyOver = Math.max(0, (rs.dc * util) / w.energy - c.energySafe)
+    const energyOver = Math.max(0, gridLoad(rs.dc, dv) / w.energy - c.energySafe)
     const pressure = (c.kPresence * dv.presenceMul + c.kCap * dv.cap ** 2) * rs.a + c.kEnergy * dv.energyMul * energyOver
     // dependence is visible no matter how good the PR is: that part of the pressure ignores stealth
     const depPressure = c.kDepSuspicion * rs.d * rs.a

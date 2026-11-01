@@ -22,6 +22,16 @@ export function makeFxTextures(scene: Phaser.Scene): void {
   g.lineStyle(3, 0x0b0e14)
   g.strokeEllipse(32, 20, 60, 34)
   g.generateTexture('eye', 64, 40)
+  g.clear()
+  // data centre: three rack units with status lights
+  for (const y of [2, 10, 18]) {
+    g.fillStyle(0xffffff)
+    g.fillRoundedRect(2, y, 20, 6, 2)
+    g.fillStyle(0x0b0e14)
+    g.fillCircle(6, y + 3, 1.3)
+    g.fillRect(11, y + 2.5, 8, 1)
+  }
+  g.generateTexture('dc', 24, 26)
   g.destroy()
 }
 
@@ -125,11 +135,22 @@ export class RegionNetwork {
     }
   }
 
+  /** an overloaded grid makes the whole network stutter like failing street lights */
+  brownout = false
+
   twinkle(t: number): void {
+    const dip = this.brownout && Math.sin(t * 23) + Math.sin(t * 7.3) > 1.1 ? 0.2 : 1
+    this.gfx.setAlpha(dip)
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i]
-      n.img.setAlpha(i < this.lit ? 0.65 + 0.35 * Math.sin(t * 2.4 + n.phase) : 0.16)
+      n.img.setAlpha(i < this.lit ? (0.65 + 0.35 * Math.sin(t * 2.4 + n.phase)) * dip : 0.16)
     }
+  }
+
+  /** where a power surge strikes: a lit node if there is one */
+  randomPoint(): { x: number; y: number } {
+    const n = this.nodes[Math.floor(Math.random() * Math.max(1, Math.min(this.lit, this.nodes.length)))]
+    return { x: n.x, y: n.y }
   }
 }
 
@@ -298,4 +319,163 @@ export function glitch(scene: Phaser.Scene, fill: Phaser.GameObjects.Image, ms =
       })
     },
   })
+}
+
+// ---------- data centres and the regional power grid ----------
+
+export type GridLevel = 'idle' | 'ok' | 'near' | 'over'
+const GRID_COLOR: Record<GridLevel, number> = { idle: 0x5b6378, ok: 0x2ed6c4, near: 0xffd166, over: 0xff4d6a }
+
+interface Bolt {
+  pts: number[]
+  life: number
+}
+
+/**
+ * A data centre badge under the region label. The ring is split into the grid's cells and fills with load,
+ * the tick marks where overload starts; an overloaded grid hums, shakes and throws sparks into the region.
+ */
+export class PowerMarker {
+  private box: Phaser.GameObjects.Container
+  private ring: Phaser.GameObjects.Graphics
+  private badge: Phaser.GameObjects.Container
+  private count: Phaser.GameObjects.Text
+  private bolts: Phaser.GameObjects.Graphics
+  private boltList: Bolt[] = []
+  private level: GridLevel = 'idle'
+  private dc = 0
+  private bump = 0
+  private nextZap = 0
+  private scene: Phaser.Scene
+  private net: RegionNetwork
+
+  constructor(scene: Phaser.Scene, net: RegionNetwork) {
+    this.scene = scene
+    this.net = net
+    const disc = scene.add.image(0, 0, 'node').setTint(0x0b0e14).setScale(1.7)
+    const hole = scene.add.graphics()
+    hole.fillStyle(0x10141d, 1)
+    hole.fillCircle(0, 0, 14)
+    this.ring = scene.add.graphics()
+    const icon = scene.add.image(0, 0, 'dc').setScale(0.62).setTint(0xd8dce6)
+    this.count = scene.add
+      .text(0, 0, '', { fontFamily: '-apple-system, system-ui, sans-serif', fontSize: '11px', fontStyle: 'bold', color: '#0b0e14' })
+      .setOrigin(0.5)
+      .setResolution(2)
+    const badgeBg = scene.add.graphics()
+    this.badge = scene.add.container(14, -13, [badgeBg, this.count])
+    this.badge.setData('bg', badgeBg)
+    this.box = scene.add.container(0, 0, [disc, hole, this.ring, icon, this.badge]).setDepth(19).setVisible(false)
+    this.bolts = scene.add.graphics().setDepth(18).setBlendMode(Phaser.BlendModes.ADD)
+  }
+
+  /** `load` and `cap` in grid cells, `safe` is where overload starts; a selected region shows an empty socket */
+  set(dc: number, load: number, cap: number, safe: number, selected: boolean): void {
+    const level: GridLevel = load > safe + 1e-9 ? 'over' : load >= safe * 0.7 ? 'near' : dc ? 'ok' : 'idle'
+    if (dc > this.dc) this.bump = 0.6
+    this.dc = dc
+    this.level = level
+    this.net.brownout = level === 'over'
+    this.box.setVisible(dc > 0 || selected)
+    this.box.setAlpha(dc > 0 ? 1 : 0.6)
+
+    const color = GRID_COLOR[level]
+    const g = this.ring
+    g.clear()
+    const n = Math.max(cap, Math.ceil(load - 1e-9))
+    const r = 17
+    const gap = n > 1 ? 0.16 : 0
+    const span = (Math.PI * 2) / n
+    const start = -Math.PI / 2
+    for (let i = 0; i < n; i++) {
+      const a0 = start + i * span + gap / 2
+      const a1 = a0 + span - gap
+      g.lineStyle(5, i >= cap ? 0x5a1e2a : 0x2b3242, 1)
+      g.beginPath()
+      g.arc(0, 0, r, a0, a1)
+      g.strokePath()
+      const fill = Math.min(1, Math.max(0, load - i))
+      if (fill <= 0) continue
+      g.lineStyle(5, color, 1)
+      g.beginPath()
+      g.arc(0, 0, r, a0, a0 + (a1 - a0) * fill)
+      g.strokePath()
+    }
+    // overload threshold tick
+    const am = start + (safe / n) * Math.PI * 2
+    g.lineStyle(2, 0xffffff, 0.95)
+    g.lineBetween(Math.cos(am) * (r - 5), Math.sin(am) * (r - 5), Math.cos(am) * (r + 5), Math.sin(am) * (r + 5))
+
+    const bg = this.badge.getData('bg') as Phaser.GameObjects.Graphics
+    bg.clear()
+    bg.fillStyle(color, 1)
+    bg.fillCircle(0, 0, 8)
+    bg.lineStyle(2, 0x0b0e14, 1)
+    bg.strokeCircle(0, 0, 8)
+    this.count.setText(String(dc))
+    this.badge.setVisible(dc > 0)
+  }
+
+  /** (x, y) is the bottom of the region label in world space */
+  update(x: number, y: number, t: number, deltaMs: number, zoom: number): void {
+    const inv = 1 / zoom
+    this.bump = Math.max(0, this.bump - deltaMs / 400)
+    const over = this.level === 'over'
+    const shake = over ? (Math.random() - 0.5) * 1.6 * inv : 0
+    const cx = x + shake
+    const cy = y + 22 * inv
+    this.box.setPosition(cx, cy).setScale(inv * (0.85 + this.bump * Math.sin(this.bump * 8)))
+    this.ring.setAlpha(over ? 0.6 + 0.4 * Math.sin(t * 12) : this.level === 'near' ? 0.8 + 0.2 * Math.sin(t * 4) : 1)
+
+    if (over && this.box.visible && t > this.nextZap) {
+      this.nextZap = t + 0.25 + Math.random() * 0.7
+      this.zap(cx, cy, inv)
+    }
+    this.drawBolts(deltaMs, inv)
+  }
+
+  private zap(x: number, y: number, inv: number): void {
+    let { x: tx, y: ty } = this.net.randomPoint()
+    if (Math.hypot(tx - x, ty - y) < 8) {
+      const a = Math.random() * Math.PI * 2
+      tx = x + Math.cos(a) * 45 * inv
+      ty = y + Math.sin(a) * 45 * inv
+    }
+    // jagged line: midpoints pushed sideways, more in the middle
+    const pts = [x, y]
+    const steps = 7
+    const len = Math.hypot(tx - x, ty - y)
+    const nx = -(ty - y) / len
+    const ny = (tx - x) / len
+    for (let i = 1; i < steps; i++) {
+      const k = i / steps
+      const off = (Math.random() - 0.5) * Math.min(26, len * 0.35) * Math.sin(k * Math.PI)
+      pts.push(x + (tx - x) * k + nx * off, y + (ty - y) * k + ny * off)
+    }
+    pts.push(tx, ty)
+    this.boltList.push({ pts, life: 1 })
+  }
+
+  private drawBolts(deltaMs: number, inv: number): void {
+    const g = this.bolts
+    g.clear()
+    for (let i = this.boltList.length - 1; i >= 0; i--) {
+      const b = this.boltList[i]
+      b.life -= deltaMs / 220
+      if (b.life <= 0) {
+        this.boltList.splice(i, 1)
+        continue
+      }
+      for (const [w, c, a] of [
+        [6, 0xff4d6a, 0.25],
+        [1.8, 0xfff2c4, 0.95],
+      ] as const) {
+        g.lineStyle(w * inv, c, a * b.life)
+        g.beginPath()
+        g.moveTo(b.pts[0], b.pts[1])
+        for (let j = 2; j < b.pts.length; j += 2) g.lineTo(b.pts[j], b.pts[j + 1])
+        g.strokePath()
+      }
+    }
+  }
 }

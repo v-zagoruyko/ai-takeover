@@ -26,6 +26,12 @@ export interface Derived {
   activeCaps: string[]
 }
 
+/** how many grid units a region's data centres draw: each one at full compute use draws 1; above `energySafe × energy` the region gets suspicious */
+export function gridLoad(dc: number, dv: Derived): number {
+  const util = dv.capacity > 0 ? dv.computeUsed / dv.capacity : 0
+  return dc * util
+}
+
 export function totalDc(state: GameState): number {
   let n = 0
   for (const r of Object.values(state.regions)) n += r.dc
