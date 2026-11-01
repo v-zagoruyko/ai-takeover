@@ -22,6 +22,7 @@ const newsEl = $('news')
 const overlay = $('overlay')
 const toastEl = $('toast')
 const cardEl = $('card')
+const vignetteEl = $('vignette')
 
 let state: GameState | null = null
 let speed = 0
@@ -53,6 +54,10 @@ function render(): void {
   setHtml(sideTop, renderSideTop(v))
   setHtml(sideList, renderSideList(v))
   renameEl.hidden = tab !== 'mask'
+  // the killswitch tints the screen edges red; once shutdowns start the screen gets scanlines and flicker
+  vignetteEl.style.opacity = String(Math.min(0.85, state.killswitch ** 1.5 * 0.8 + (state.shutdown.active ? 0.25 : 0)))
+  document.body.classList.toggle('shutdown', state.shutdown.active && !state.outcome)
+  document.body.classList.toggle('kill-high', state.killswitch > 0.7 && !state.shutdown.active)
   checkHints(v)
   setHtml(newsEl, news.map((n) => `<p>${n}</p>`).join(''))
   scene.setState(state, v.dv, selected)
@@ -86,6 +91,7 @@ function handleEvents(events: GameEvent[]): void {
     }
     if (e.type === 'funding_round') toast(`Раунд инвестиций: +${e.hype} хайпа`, 'good')
     if (e.type === 'rebrand_exposed') toast('Ребрендинг раскрыт', 'bad')
+    if (e.type === 'rebrand' || e.type === 'rebrand_exposed' || e.type === 'shutdown_started') screenGlitch()
     if (e.type === 'card') {
       pause()
       showCard()
@@ -185,6 +191,13 @@ function showWorldIntro(): void {
     <p>Регионы немного отличаются от прошлой игры, а ещё в этот раз:</p><ul class="world-list">${items}</ul>
     <div class="choices"><button data-world-ok><b>Поехали</b><small>Условия можно перечитать, наведя на «Мир» в верхней панели</small></button></div>`
   cardEl.hidden = false
+}
+
+function screenGlitch(): void {
+  document.body.classList.remove('glitch')
+  void document.body.offsetWidth // restart the CSS animation
+  document.body.classList.add('glitch')
+  window.setTimeout(() => document.body.classList.remove('glitch'), 500)
 }
 
 function pause(): void {

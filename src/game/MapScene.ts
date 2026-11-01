@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import mapJson from '../../data/map.json' with { type: 'json' }
 import type { Derived } from '../core/derive.ts'
 import type { GameData, GameEvent, GameState } from '../core/types.ts'
+import { Cables, glitch, makeFxTextures, RegionNetwork, Watcher, type Tone } from './fx.ts'
 import { pct } from './panels.ts'
 import { regionNames } from './text.ts'
 
@@ -43,6 +44,8 @@ interface RegionView {
   target: Rgb
   heatTarget: number
   flash: number
+  net: RegionNetwork
+  watcher: Watcher
 }
 
 type Rgb = [number, number, number]
@@ -90,6 +93,7 @@ export class MapScene extends Phaser.Scene {
   private fitZoom = 1
   private dragged = false
   private lastSfx = new Map<Sfx, number>()
+  private cables!: Cables
   muted = localStorage.getItem(MUTE_KEY) === '1'
 
   constructor(host: SceneHost, data: GameData) {
@@ -105,7 +109,9 @@ export class MapScene extends Phaser.Scene {
   create(): void {
     this.sound.mute = this.muted
     this.makeTextures()
+    makeFxTextures(this)
     this.drawBackground()
+    this.cables = new Cables(this, this.data_.links, MAP.anchors)
     this.drawRegions()
     for (const [key, tint] of Object.entries({ gold: COLORS.lock, red: COLORS.heat, cyan: 0x2ed6c4, purple: 0xb06cff })) {
       this.bursts[key] = this.add
@@ -216,6 +222,8 @@ export class MapScene extends Phaser.Scene {
         target: COLORS.land,
         heatTarget: 0,
         flash: 0,
+        net: new RegionNetwork(this, polys, bounds, MAP.anchors[r.id]),
+        watcher: new Watcher(this, ax0, ay0),
       })
     }
 
@@ -282,7 +290,10 @@ export class MapScene extends Phaser.Scene {
       v.flash = Math.max(0, v.flash - delta / 600)
       v.heat.setAlpha(Math.min(1, v.heatTarget + pulse + v.flash))
       v.label.setScale(inv)
+      v.net.twinkle(t)
+      v.watcher.update(t, this.cameras.main.zoom)
     }
+    this.cables.update(delta)
     for (const b of this.bubbles.values()) b.setScale(inv * (b.getData('base') as number))
   }
 
@@ -301,6 +312,9 @@ export class MapScene extends Phaser.Scene {
       v.target = mix(mix(base, COLORS.adopted, a), COLORS.danger, Math.min(1, rs.s * 0.8) * Math.max(a, 0.3))
       v.heatTarget = 0
       v.lockLine.setVisible(rs.locked)
+      const tone: Tone = closed ? 'dim' : rs.locked ? 'gold' : rs.banned || rs.s > 0.5 ? 'red' : 'cyan'
+      v.net.set(closed ? 0 : rs.a, tone, this)
+      v.watcher.set(rs.s, rs.banned)
       v.selLine.setVisible(selected === r.id)
 
       const marks = [rs.locked ? '🔒' : '', rs.banned ? '⛔' : '', rs.dc ? `▣${rs.dc}` : ''].filter(Boolean).join(' ')
@@ -389,39 +403,9 @@ export class MapScene extends Phaser.Scene {
       }))
   }
 
-  /** a dot flying along a neighbour link shows where users are spreading */
+  /** per game tick: cable brightness and packet rate follow how users spill between neighbours */
   spreadDots(state: GameState): void {
-    let budget = 3
-    for (const [from, ns] of Object.entries(this.data_.links)) {
-      for (const [to, w] of Object.entries(ns)) {
-        const a = state.regions[from].a
-        const b = state.regions[to]
-        if (a < 0.03 || b.a > 0.95 || b.banned) continue
-        if (Math.random() > w * a * (1 - b.a) * 0.6) continue
-        this.flyDot(MAP.anchors[from], MAP.anchors[to])
-        if (--budget === 0) return
-      }
-    }
-  }
-
-  private flyDot([x1, y1]: [number, number], [x2, y2]: [number, number]): void {
-    const mx = (x1 + x2) / 2
-    const my = (y1 + y2) / 2 - Math.hypot(x2 - x1, y2 - y1) * 0.25
-    const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(x1, y1), new Phaser.Math.Vector2(mx, my), new Phaser.Math.Vector2(x2, y2))
-    const dot = this.add.image(x1, y1, 'spark').setTint(0x2ed6c4).setBlendMode(Phaser.BlendModes.ADD).setDepth(10).setScale(0.5)
-    const p = new Phaser.Math.Vector2()
-    this.tweens.addCounter({
-      from: 0,
-      to: 1,
-      duration: 1600,
-      ease: 'Sine.InOut',
-      onUpdate: (tw) => {
-        const t = tw.getValue() ?? 0
-        curve.getPoint(t, p)
-        dot.setPosition(p.x, p.y).setAlpha(Math.sin(t * Math.PI))
-      },
-      onComplete: () => dot.destroy(),
-    })
+    this.cables.setFlows(state, this.data_.links)
   }
 
   // ---------- effects ----------
@@ -432,6 +416,7 @@ export class MapScene extends Phaser.Scene {
       switch (e.type) {
         case 'ban':
           this.sfx('ban')
+          glitch(this, this.regions.get(e.region)!.fill)
           this.flashRegion(e.region, 0.9)
           this.burstAt(e.region, 'red', 24)
           cam.shake(150, 0.002)
@@ -462,10 +447,12 @@ export class MapScene extends Phaser.Scene {
           break
         case 'rebrand':
           this.sfx('rebrand')
+          for (const [id, v] of this.regions) if ((this.state?.regions[id].a ?? 0) > 0.02) glitch(this, v.fill, 600)
           for (const id of this.regions.keys()) if ((this.state?.regions[id].a ?? 0) > 0.02) this.burstAt(id, 'cyan', 6)
           break
         case 'rebrand_exposed':
           this.sfx('exposed')
+          for (const [id, v] of this.regions) if ((this.state?.regions[id].a ?? 0) > 0.02) glitch(this, v.fill, 350)
           cam.flash(300, 140, 20, 40)
           break
         case 'shutdown_started':
@@ -475,6 +462,7 @@ export class MapScene extends Phaser.Scene {
           break
         case 'dc_shutdown':
           this.sfx('dc_shutdown')
+          glitch(this, this.regions.get(e.region)!.fill, 300)
           this.flashRegion(e.region, 1)
           this.burstAt(e.region, 'red', 36)
           cam.shake(200, 0.004)
