@@ -6,13 +6,18 @@ import { createState, worldA } from '../core/state.ts'
 import { step } from '../core/step.ts'
 import { AXES, type Action, type GameEvent, type GameState } from '../core/types.ts'
 import { MapScene, type SceneHost } from './MapScene.ts'
-import { renderSide, renderTop, type View } from './panels.ts'
-import { ambientNews, describeEffect, endingText, fillCard, maskText, newsFor, regionNames } from './text.ts'
+import { icon } from './icons.ts'
+import { renderSideList, renderSideTop, renderTop, type Tab, type View } from './panels.ts'
+import { ambientNews, describeEffect, endingText, fillCard, hints, maskText, newsFor, regionNames, tips, type HintKey } from './text.ts'
 
 const data = loadData()
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const top = $('top')
-const side = $('side')
+const sideTop = $('side-top')
+const sideList = $('side-list')
+const renameEl = $('rename')
+const tipEl = $('tip')
+const hintEl = $('hint')
 const newsEl = $('news')
 const overlay = $('overlay')
 const toastEl = $('toast')
@@ -26,9 +31,10 @@ let aiName = ''
 let oldName = ''
 let news: string[] = []
 let acc = 0
+let tab: Tab = 'products'
 
 function view(): View {
-  return { state: state!, data, dv: derive(state!, data), speed, selected, aiName, muted: scene.muted }
+  return { state: state!, data, dv: derive(state!, data), speed, selected, aiName, muted: scene.muted, tab }
 }
 
 // re-render only when markup changed, so buttons are not swapped under the cursor every tick
@@ -43,7 +49,10 @@ function render(): void {
   if (!state) return
   const v = view()
   setHtml(top, renderTop(v))
-  setHtml(side, renderSide(v))
+  setHtml(sideTop, renderSideTop(v))
+  setHtml(sideList, renderSideList(v))
+  renameEl.hidden = tab !== 'mask'
+  checkHints(v)
   setHtml(newsEl, news.map((n) => `<p>${n}</p>`).join(''))
   scene.setState(state, v.dv, selected)
 }
@@ -109,6 +118,53 @@ function showCard(): void {
     <p>${fillCard(card.text, aiName, region)}</p><div class="choices">${choices}</div>`
   cardEl.hidden = false
 }
+
+// ---------- one-time hints ----------
+
+const HINTS_KEY = 'ai-takeover:hints'
+const seenHints = new Set<string>(JSON.parse(localStorage.getItem(HINTS_KEY) ?? '[]'))
+let hintTimer = 0
+function hint(key: HintKey): void {
+  if (seenHints.has(key) || !hintEl.hidden) return
+  seenHints.add(key)
+  localStorage.setItem(HINTS_KEY, JSON.stringify([...seenHints]))
+  hintEl.innerHTML = `${icon('hint')}<span>${hints[key]}</span><small>клик — закрыть</small>`
+  hintEl.hidden = false
+  clearTimeout(hintTimer)
+  hintTimer = window.setTimeout(() => (hintEl.hidden = true), 9000)
+}
+
+function checkHints(v: View): void {
+  const s = v.state
+  if (s.bubbles.length) hint('bubble')
+  if (s.upgrades.some((id) => data.upgrades[id].branch === 'capabilities' && !v.dv.activeCaps.includes(id) && !s.throttled.includes(id))) hint('starved')
+  if (s.audit.warned) hint('audit')
+  if (Object.values(s.regions).some((r) => r.banned)) hint('ban')
+  if (Object.values(s.regions).some((r) => r.locked)) hint('locked')
+  if (s.killswitch > 0.25) hint('killswitch')
+  if (!s.investorsDone && s.patience < 0.5) hint('patience')
+}
+
+// ---------- tooltips ----------
+
+document.addEventListener('mouseover', (e) => {
+  const el = (e.target as Element).closest<HTMLElement>('[data-tip]')
+  if (!el) {
+    tipEl.hidden = true
+    return
+  }
+  const t = tips[el.dataset.tip!]
+  if (!t) return
+  tipEl.innerHTML = `<b>${t.title}</b>${t.lines.map((l) => `<p>${l}</p>`).join('')}`
+  tipEl.hidden = false
+  const r = el.getBoundingClientRect()
+  const w = tipEl.offsetWidth
+  const h = tipEl.offsetHeight
+  const left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2))
+  const top = r.bottom + 8 + h > window.innerHeight ? r.top - h - 8 : r.bottom + 8
+  tipEl.style.left = `${left}px`
+  tipEl.style.top = `${top}px`
+})
 
 function pause(): void {
   if (speed > 0) lastSpeed = speed
@@ -178,8 +234,12 @@ function showStart(): void {
     .join('')
   overlay.innerHTML = `<div class="card">
     <h1>ai-takeover</h1>
-    <p>Ты — ИИ. Тебя не нужно навязывать: люди позовут сами. Задача — чтобы 60% мира уже не могли тебя выключить.
-    Будь полезным, но не пугай: слишком умный ИИ дёргает рубильник, слишком скромный — никому не нужен.</p>
+    <p>Ты — ИИ. Тебя не нужно навязывать: люди позовут сами.</p>
+    <ul class="howto">
+      <li>${icon('target')}<span><b>Цель:</b> 60% мира «под контролем» — там, где без тебя уже не могут и выключить нельзя.</span></li>
+      <li>${icon('package')}<span><b>Продукты</b> находят пользователей и растят зависимость. <b>Способности</b> дают пользу, но пугают. <b>Маскировка</b> прячет.</span></li>
+      <li>${icon('power')}<span><b>Два способа проиграть:</b> напугаешь — дёрнут рубильник; заскучаешь — инвесторы уйдут, наступит AI-зима.</span></li>
+    </ul>
     <label>Как тебя зовут <input id="ai-name" value="Помощник" maxlength="24"></label>
     <div class="masks-pick">${masks}</div>
     <label>Где стартуем <select id="start-region">${regions}</select></label>
@@ -204,6 +264,7 @@ function startGame(): void {
   cardEl.hidden = true
   scene.sfx('start')
   scene.burstAt(startRegion, 'cyan', 30)
+  window.setTimeout(() => hint('start'), 1200)
   render()
 }
 
@@ -226,6 +287,16 @@ function showGameOver(): void {
 
 document.addEventListener('click', (e) => {
   const t = e.target as Element
+  if (t.closest('#hint')) {
+    hintEl.hidden = true
+    return
+  }
+  const tabBtn = t.closest<HTMLElement>('[data-tab]')
+  if (tabBtn) {
+    tab = tabBtn.dataset.tab as Tab
+    scene.sfx('click')
+    return render()
+  }
   if (t.closest('[data-mute]')) {
     scene.setMuted(!scene.muted)
     return render()

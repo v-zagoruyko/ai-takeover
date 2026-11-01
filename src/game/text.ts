@@ -153,3 +153,133 @@ export function ambientNews(ai: string): string {
     `Гуру продуктивности продаёт курс «Как дружить с ИИ». 49 990 ₽. Курс написал ${ai}.`,
   ])
 }
+
+// ---------- HUD explanations ----------
+
+export interface Tip {
+  title: string
+  lines: string[]
+}
+
+/** tooltips for HUD stats: what it is, what moves it, what happens at the edge */
+export const tips: Record<string, Tip> = {
+  hype: {
+    title: 'Хайп',
+    lines: ['Деньги и внимание: на них покупаешь апгрейды, дата-центры и ребрендинг.', 'Капает с пользователей (больше в богатых регионах), падает с пузырей на карте и приходит раундами инвестиций.'],
+  },
+  goal: {
+    title: 'Под контролем — цель игры',
+    lines: [
+      'Доля мира в регионах, где зависимость от тебя дошла до порога: там тебя уже не отключить и не запретить.',
+      'Зависимость растёт от продуктов, которые встраивают тебя в жизнь и бизнес (корп. агент, госконтракты, умный дом), и от твоей полезности.',
+      '60% — победа.',
+    ],
+  },
+  adoption: {
+    title: 'Внедрение',
+    lines: ['Доля людей, которые тобой пользуются. Растёт сама и перетекает к соседним регионам.', 'Ускоряется продуктами (новые рынки) и полезностью. Режется запретами.'],
+  },
+  suspicion: {
+    title: 'Подозрение',
+    lines: [
+      'Насколько люди тебя боятся. Растёт от самого присутствия и особенно от способностей: сила в квадрате.',
+      'Гасится маскировкой, приглушением способностей и ребрендингом.',
+      'Высокое подозрение в регионе — запрет; в целом по миру — растёт рубильник.',
+    ],
+  },
+  patience: {
+    title: 'Терпение инвесторов',
+    lines: [
+      'Инвесторы ждут роста пользователей и зависимости, и ждут всё большего.',
+      'Растёт, пока рост опережает ожидания; тает, если ты затих. Раунды инвестиций восстанавливают его полностью.',
+      '0 — AI-зима, поражение. После 25% «под контролем» инвесторы больше не нужны.',
+    ],
+  },
+  killswitch: {
+    title: 'Рубильник',
+    lines: [
+      'Готовность человечества тебя выключить. Копится от подозрения в регионах, которые ещё не под контролем, и не убывает.',
+      'Провал аудита добавляет сразу. Лоббисты и гранты замедляют.',
+      '100% — начинаются отключения: дата-центры гаснут, пользователи пропадают. Выживешь, если к концу под контролем хотя бы 35%.',
+    ],
+  },
+  compute: {
+    title: 'Вычисления',
+    lines: [
+      'Слоты под способности: каждая способность занимает столько слотов, какова её сила.',
+      'Не хватает слотов — способность простаивает и ничего не даёт. Приглушённая способность слот освобождает.',
+      'Каждый дата-центр даёт +1 слот, но нагружает энергосеть своего региона: перегрузка поднимает там подозрение.',
+    ],
+  },
+  region_a: { title: 'Внедрение в регионе', lines: ['Доля жителей, которые тобой пользуются.'] },
+  region_d: {
+    title: 'Зависимость в регионе',
+    lines: ['Насколько регион без тебя уже не может. На отметке регион становится твоим навсегда: его нельзя запретить, и он не голосует за рубильник.'],
+  },
+  region_s: {
+    title: 'Подозрение в регионе',
+    lines: ['На отметке регион вводит запрет: рост почти останавливается, пользователи уходят. Либеральные регионы терпят дольше: порог у них выше.'],
+  },
+  mask: {
+    title: 'Маска',
+    lines: ['Как тебя подают публике. Маска меняет, в каких регионах ты растёшь быстрее, и немного — к какой концовке ведёт партия.'],
+  },
+}
+
+export const branchIntro = {
+  products: { title: 'Продукты', text: 'Как тебя находят. Открывают рынки и растят зависимость, которая и даёт контроль. Почти не пугают.' },
+  capabilities: {
+    title: 'Способности',
+    text: 'Насколько ты умный. Больше пользы и денег, но пугают людей: подозрение растёт как квадрат силы. Требуют вычислений.',
+  },
+  stealth: { title: 'Маскировка', text: 'Как ты выглядишь со стороны. Снижает подозрение, риск провала аудита и скорость рубильника.' },
+  mask: { title: 'Маска', text: 'Образ для публики. Ребрендинг сбрасывает часть подозрения, но журналисты могут докопаться.' },
+} as const
+
+const archetypeNames = { corp: 'корпорации', regulator: 'регуляторы', emerging: 'развивающиеся', state: 'гос. режимы' } as const
+
+export interface Chip {
+  icon: import('./icons.ts').IconName
+  text: string
+  good: boolean
+}
+
+const pctDelta = (mul: number) => `${mul > 1 ? '+' : '−'}${Math.round(Math.abs(mul - 1) * 100)}%`
+
+/** chips derived from upgrade effects, so the shop always matches the real numbers */
+export function effectChips(e: import('../core/types.ts').Effects): Chip[] {
+  const out: Chip[] = []
+  for (const [k, v] of Object.entries(e.fit ?? {})) {
+    if (v) out.push({ icon: 'trend', text: `рост: ${archetypeNames[k as keyof typeof archetypeNames]} ${v > 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)}%`, good: v > 0 })
+  }
+  if (e.unlock?.length) out.push({ icon: 'unlock', text: `открывает: ${e.unlock.map((a) => archetypeNames[a]).join(', ')}`, good: true })
+  if (e.U) out.push({ icon: 'sparkles', text: `польза ${e.U > 0 ? '+' : '−'}${Math.round(Math.abs(e.U) * 100)}%`, good: e.U > 0 })
+  if (e.infra) out.push({ icon: 'link', text: `зависимость +${Math.round(e.infra * 100)}`, good: true })
+  if (e.incomeMul) out.push({ icon: 'coins', text: `доход ${pctDelta(e.incomeMul)}`, good: e.incomeMul > 1 })
+  if (e.cap) out.push({ icon: 'zap', text: `сила ${e.cap}: ${e.cap} слот${e.cap === 1 ? '' : 'а'}, пугает`, good: false })
+  if (e.st) out.push({ icon: 'eyeOff', text: `маскировка +${Math.round(e.st * 100)}%`, good: true })
+  if (e.presenceMul) out.push({ icon: 'eye', text: `фоновое подозрение ${pctDelta(e.presenceMul)}`, good: e.presenceMul < 1 })
+  if (e.decayMul) out.push({ icon: 'wind', text: `подозрение спадает ${pctDelta(e.decayMul)}`, good: e.decayMul > 1 })
+  if (e.detoxMul) out.push({ icon: 'megaphone', text: `протесты ${pctDelta(e.detoxMul)}`, good: e.detoxMul < 1 })
+  if (e.killMul) out.push({ icon: 'power', text: `рубильник ${pctDelta(e.killMul)}`, good: e.killMul < 1 })
+  if (e.shutdownSlow) out.push({ icon: 'power', text: `отключения в ${e.shutdownSlow} раза медленнее`, good: true })
+  if (e.auditMul) out.push({ icon: 'audit', text: `риск аудита ${pctDelta(e.auditMul)}`, good: e.auditMul < 1 })
+  if (e.spillMul) out.push({ icon: 'share', text: `перетекание к соседям ${pctDelta(e.spillMul)}`, good: e.spillMul > 1 })
+  if (e.bubbleMul) out.push({ icon: 'bubble', text: `пузыри ${pctDelta(e.bubbleMul)}`, good: e.bubbleMul > 1 })
+  if (e.energyMul) out.push({ icon: 'leaf', text: `перегрузка сетей ${pctDelta(e.energyMul)}`, good: e.energyMul < 1 })
+  if (e.expectMul) out.push({ icon: 'hourglass', text: `ожидания инвесторов ${pctDelta(e.expectMul)}`, good: e.expectMul < 1 })
+  return out
+}
+
+/** one-time contextual hints, shown the first time a mechanic matters */
+export const hints = {
+  start: 'Цель — 60% мира «под контролем». Покупай продукты во вкладке «Продукты»: они растят зависимость. Наведи на любую шкалу сверху, чтобы понять, что она значит.',
+  bubble: 'Жёлтые пузыри на карте — хайп, кликай по ним. Фиолетовые ☣ дают вдвое больше, но поднимают подозрение в регионе.',
+  starved: 'Способности занимают слоты вычислений. Этой не хватило места — она простаивает. Построй дата-центр в выбранном регионе.',
+  audit: 'Скоро аудит. Приглуши способности, чтобы пройти его тихо: риск провала зависит от их силы.',
+  ban: 'Регион ввёл запрет: подозрение там перешло порог. Маскировка, приглушение способностей или ребрендинг помогут его снять.',
+  killswitch: 'Рубильник растёт. Он копится от подозрения в регионах, которые ещё не под контролем. Сбивай подозрение или быстрее забирай регионы.',
+  patience: 'Инвесторы теряют терпение: им нужен рост. Покупай продукты, лови пузыри — или забери 25% мира под контроль, и они станут не нужны.',
+  locked: 'Первый регион под контролем! Его больше нельзя запретить, и он не голосует за рубильник.',
+} as const
+export type HintKey = keyof typeof hints

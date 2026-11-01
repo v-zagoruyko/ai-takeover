@@ -13,9 +13,18 @@
     <div id="game"></div>
     <header id="top" class="hud"></header>
     <aside class="hud panel">
-      <label class="rename">Новое имя при ребрендинге <input id="rebrand-name" placeholder="пусто — «… 2.0»" maxlength="24" /></label>
-      <div id="side"></div>
+      <div id="side-top"></div>
+      <label class="rename" id="rename" hidden>Новое имя при ребрендинге <input id="rebrand-name" placeholder="пусто — «… 2.0»" maxlength="24" /></label>
+      <div id="side-list"></div>
     </aside>
+    <div id="legend" class="hud">
+      <span><i class="sw grad"></i>пользователи</span>
+      <span><i class="sw red"></i>подозрение</span>
+      <span><i class="sw gold"></i>под контролем</span>
+      <span>⛔ запрет</span><span>▣ дата-центр</span><span>✕ закрыто</span>
+    </div>
+    <div id="tip" hidden></div>
+    <div id="hint" hidden></div>
     <div id="news" class="hud"></div>
     <div id="toast"></div>
     <div id="card" class="event-card" hidden></div>
