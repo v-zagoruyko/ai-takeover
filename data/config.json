@@ -7,8 +7,8 @@
   "bannedDecay": 0.002,
   "kDep": 0.002,
   "kDetox": 0.01,
-  "lockAt": 0.7,
-  "unlockAt": 0.6,
+  "lockAt": 0.75,
+  "unlockAt": 0.65,
   "kPresence": 0.001,
   "kCap": 0.0002,
   "kEnergy": 0.01,
@@ -45,7 +45,7 @@
   ],
   "investorsDoneAtL": 0.25,
   "killswitchBaseline": 0.3,
-  "kKill": 0.01,
+  "kKill": 0.016,
   "shutdownEvery": 30,
   "shutdownDuration": 300,
   "shutdownAdoptionLoss": 0.3,
@@ -75,5 +75,8 @@
   "appetitePerDc": 0.1,
   "symbiosisSpread": 0.15,
   "symbiosisMaxS": 0.2,
-  "maxTicks": 3000
+  "maxTicks": 3000,
+  "cardFirst": 90,
+  "cardMin": 70,
+  "cardMax": 130
 }

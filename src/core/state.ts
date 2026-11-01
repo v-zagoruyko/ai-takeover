@@ -39,6 +39,9 @@ export function createState(data: GameData, opts: NewGame): GameState {
     audit: { at: 0, warned: false },
     growth: [],
     prevProgress: 0,
+    card: null,
+    cardsSeen: [],
+    nextCardAt: c.cardFirst,
     events: [],
     outcome: null,
   }

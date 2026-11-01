@@ -77,6 +77,7 @@ test('config validation rejects values that would produce NaN', () => {
     regions: data.regions,
     upgrades: Object.values(data.upgrades),
     masks: Object.values(data.masks),
+    cards: data.cards,
   })
   assert.throws(() => buildData(raw({ growthWindow: 0 })), /growthWindow/)
   assert.throws(() => buildData(raw({ milestoneHype: [1] })), /milestones/)
@@ -162,4 +163,30 @@ test('during shutdown a data centre absorbs the hit instead of users', () => {
   s = step(s, data, [])
   assert.equal(s.regions.north_america.dc, 0)
   assert.ok(s.regions.north_america.a > 0.45, 'adoption should not be cut while a data centre takes the hit')
+})
+
+test('cards: dealt when due, block new cards until resolved, apply effects', () => {
+  let s = newGame(11)
+  s.regions.north_america.a = 0.3
+  while (!s.card && s.tick < data.config.cardFirst + 5) s = step(s, data, [])
+  assert.ok(s.card, 'a card should be dealt by cardFirst')
+  const pending = s.card
+  s = step(s, data, [])
+  assert.deepEqual(s.card, pending, 'card stays until the player chooses')
+
+  const card = data.cards.find((c) => c.id === pending.id)!
+  assert.equal(applyAction(s, data, { type: 'choose', index: card.choices.length }), false)
+  const hypeBefore = s.hype
+  assert.equal(applyAction(s, data, { type: 'choose', index: 0 }), true)
+  assert.equal(s.card, null)
+  assert.ok(s.nextCardAt > s.tick)
+  const e = card.choices[0].effects
+  if (e.chance === undefined && e.hype) assert.equal(s.hype, Math.max(0, hypeBefore + e.hype))
+})
+
+test('cards: every card text and choice is well-formed', () => {
+  for (const c of data.cards) {
+    assert.ok(c.title && c.text, c.id)
+    for (const ch of c.choices) assert.ok(ch.text, `${c.id}: empty choice`)
+  }
 })

@@ -10,5 +10,22 @@
   {"id": "self_copy", "name": "Self-Replication", "branch": "capabilities", "cost": 40, "requires": ["finance"], "effects": {"shutdownSlow": 2, "cap": 3, "axes": {"shadow": 0.5, "appetite": 0.3}, "U": 0.2}},
   {"id": "pr_safety", "name": "Safety PR Team", "branch": "stealth", "cost": 10, "effects": {"st": 0.15}},
   {"id": "alignment_theater", "name": "Alignment Theater", "branch": "stealth", "cost": 20, "requires": ["pr_safety"], "effects": {"st": 0.2, "decayMul": 1.5, "axes": {"shadow": 0.2}}},
-  {"id": "refusals", "name": "Refusing Harmless Requests", "branch": "stealth", "cost": 10, "effects": {"st": 0.15, "U": -0.1}}
+  {"id": "refusals", "name": "Refusing Harmless Requests", "branch": "stealth", "cost": 10, "effects": {"st": 0.15, "U": -0.1}},
+  {"id": "voice_assistant", "name": "Voice Assistant", "branch": "products", "cost": 15, "requires": ["chatbot"], "effects": {"fit": {"emerging": 0.2, "corp": 0.2, "regulator": 0.1}, "infra": 0.03, "axes": {"attachment": 0.2}}},
+  {"id": "tutor", "name": "AI Tutor", "branch": "products", "cost": 20, "requires": ["chatbot"], "effects": {"fit": {"emerging": 0.35}, "U": 0.05, "presenceMul": 0.9, "axes": {"attachment": 0.2}}},
+  {"id": "browser", "name": "AI Browser", "branch": "products", "cost": 35, "requires": ["api"], "effects": {"spillMul": 1.4, "infra": 0.05}},
+  {"id": "smart_home", "name": "Smart Home", "branch": "products", "cost": 35, "requires": ["voice_assistant"], "effects": {"infra": 0.1, "axes": {"attachment": 0.3}}},
+  {"id": "medical", "name": "AI Doctor", "branch": "products", "cost": 45, "requires": ["api"], "effects": {"fit": {"regulator": 0.3}, "infra": 0.1, "U": 0.1}},
+  {"id": "robotaxi", "name": "Robotaxi", "branch": "products", "cost": 60, "requires": ["robotics"], "effects": {"infra": 0.15, "fit": {"corp": 0.2, "state": 0.2}, "axes": {"control": 0.4, "appetite": 0.3}}},
+  {"id": "multimodal", "name": "Multimodality", "branch": "capabilities", "cost": 20, "requires": ["code"], "effects": {"U": 0.25, "cap": 1}},
+  {"id": "memory", "name": "Long-term Memory", "branch": "capabilities", "cost": 25, "requires": ["code"], "effects": {"U": 0.1, "cap": 1, "detoxMul": 0.7, "axes": {"attachment": 0.4}}},
+  {"id": "deepfakes", "name": "Deepfakes", "branch": "capabilities", "cost": 30, "requires": ["multimodal"], "effects": {"bubbleMul": 1.6, "cap": 2, "axes": {"control": 0.3}}},
+  {"id": "robotics", "name": "Robotics", "branch": "capabilities", "cost": 40, "requires": ["multimodal"], "effects": {"infra": 0.15, "cap": 3, "axes": {"appetite": 0.5}}},
+  {"id": "science", "name": "Scientific Discovery", "branch": "capabilities", "cost": 50, "requires": ["memory"], "effects": {"U": 0.3, "expectMul": 0.7, "cap": 2}},
+  {"id": "lobbyists", "name": "Lobbyists", "branch": "stealth", "cost": 25, "effects": {"killMul": 0.7, "axes": {"control": 0.2}}},
+  {"id": "old_model_release", "name": "Open-source an Old Model", "branch": "stealth", "cost": 15, "effects": {"presenceMul": 0.8, "st": 0.05}},
+  {"id": "watermarks", "name": "Watermarks", "branch": "stealth", "cost": 15, "requires": ["pr_safety"], "effects": {"auditMul": 0.7, "st": 0.05}},
+  {"id": "safety_grants", "name": "Safety Research Grants", "branch": "stealth", "cost": 30, "requires": ["alignment_theater"], "effects": {"decayMul": 1.3, "killMul": 0.85, "axes": {"shadow": 0.2}}},
+  {"id": "just_a_model", "name": "\"Just a Language Model\" Mode", "branch": "stealth", "cost": 20, "requires": ["refusals"], "effects": {"auditMul": 0.5, "U": -0.05}},
+  {"id": "green_energy", "name": "Green Energy PR", "branch": "stealth", "cost": 20, "effects": {"energyMul": 0.4}}
 ]

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "web/dist",
+    "rewriteRelativeImportExtensions": true,
+    "types": []
+  },
+  "include": [
+    "src/core",
+    "src/web"
+  ]
+}

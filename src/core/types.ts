@@ -32,6 +32,14 @@ export interface Effects {
   shutdownSlow?: number
   unlock?: Archetype[]
   axes?: Partial<Axes>
+  /** multipliers */
+  bubbleMul?: number
+  killMul?: number
+  auditMul?: number
+  spillMul?: number
+  presenceMul?: number
+  energyMul?: number
+  expectMul?: number
 }
 
 export interface Upgrade {
@@ -51,6 +59,44 @@ export interface Mask {
   banMul: number
   infra?: number
   axes: Partial<Axes>
+}
+
+/** effects of an event-card choice; region-scoped fields hit the card's region */
+export interface CardEffect {
+  hype?: number
+  suspicion?: number
+  adoption?: number
+  regionSuspicion?: number
+  regionAdoption?: number
+  regionDependence?: number
+  killswitch?: number
+  patience?: number
+  axes?: Partial<Axes>
+  /** if set, the effect applies with this probability, otherwise `fail` applies */
+  chance?: number
+  fail?: CardEffect
+}
+
+export interface CardChoice {
+  text: string
+  effects: CardEffect
+}
+
+export interface Card {
+  id: string
+  title: string
+  text: string
+  when: {
+    minTick?: number
+    minA?: number
+    minS?: number
+    minDc?: number
+    needs?: string[]
+    /** card is about a region: picked among regions with at least this adoption */
+    regionMinA?: number
+    regionArchetypes?: Archetype[]
+  }
+  choices: CardChoice[]
 }
 
 export interface Config {
@@ -121,6 +167,9 @@ export interface Config {
   symbiosisSpread: number
   symbiosisMaxS: number
   maxTicks: number
+  cardFirst: number
+  cardMin: number
+  cardMax: number
 }
 
 export interface GameData {
@@ -128,6 +177,7 @@ export interface GameData {
   regions: Region[]
   upgrades: Record<string, Upgrade>
   masks: Record<string, Mask>
+  cards: Card[]
   /** symmetric neighbour weights: links[a][b] === links[b][a] */
   links: Record<string, Record<string, number>>
 }
@@ -181,6 +231,8 @@ export type GameEvent =
   | { type: 'rebrand_exposed' }
   | { type: 'shutdown_started' }
   | { type: 'game_over'; outcome: Outcome }
+  | { type: 'card'; card: string; region: string | null }
+  | { type: 'card_resolved'; card: string; choice: number; success: boolean }
 
 export interface GameState {
   tick: number
@@ -203,6 +255,10 @@ export interface GameState {
   audit: { at: number; warned: boolean }
   growth: number[]
   prevProgress: number
+  /** pending event card waiting for the player's choice */
+  card: { id: string; region: string | null } | null
+  cardsSeen: string[]
+  nextCardAt: number
   /** events emitted during the last step only */
   events: GameEvent[]
   outcome: Outcome | null
@@ -215,3 +271,4 @@ export type Action =
   | { type: 'build_dc'; region: string }
   | { type: 'rebrand'; mask: string }
   | { type: 'pop_bubble'; id: number }
+  | { type: 'choose'; index: number }

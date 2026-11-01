@@ -1,4 +1,5 @@
 import { derive, totalDc } from './derive.ts'
+import { resolveCard } from './cards.ts'
 import { int } from './rng.ts'
 import type { Action, GameData, GameState } from './types.ts'
 
@@ -77,6 +78,8 @@ export function applyAction(state: GameState, data: GameData, action: Action): b
       state.events.push({ type: 'rebrand', mask: action.mask })
       return true
     }
+    case 'choose':
+      return resolveCard(state, data, action.index)
     case 'pop_bubble': {
       const i = state.bubbles.findIndex((b) => b.id === action.id)
       if (i < 0) return false

@@ -71,6 +71,6 @@ SINGULARITY INC., Ghost Algorithm, Singularity Echoes, Rogue AI: Idle Domination
 
 ## Открытые вопросы
 - Список масок с бонусами и слабостями.
-- Пул событий (сатирические карточки).
+- Пул событий: первые 18 карточек сделаны (`data/cards.json`), нужно больше и с последствиями на несколько ходов.
 - Название игры.
 - Стек: веб (TS + PixiJS/Phaser, Capacitor/Tauri) vs Godot.

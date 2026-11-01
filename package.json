@@ -8,10 +8,19 @@
   "scripts": {
     "sim": "node src/cli/sim.ts",
     "test": "node --test 'test/**/*.test.ts'",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "dev": "vite --host 127.0.0.1",
+    "build:web": "tsc -p tsconfig.web.json",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "dev:old": "node scripts/dev.mjs --watch"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "phaser": "^4.2.1"
   }
 }

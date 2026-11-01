@@ -11,6 +11,13 @@ export interface Derived {
   decayMul: number
   shutdownSlow: number
   banMul: number
+  bubbleMul: number
+  killMul: number
+  auditMul: number
+  spillMul: number
+  presenceMul: number
+  energyMul: number
+  expectMul: number
   unlocked: Set<Archetype>
   axes: Axes
   capacity: number
@@ -39,6 +46,13 @@ function apply(d: Derived, e: Effects): void {
   d.detoxMul *= e.detoxMul ?? 1
   d.decayMul *= e.decayMul ?? 1
   d.shutdownSlow *= e.shutdownSlow ?? 1
+  d.bubbleMul *= e.bubbleMul ?? 1
+  d.killMul *= e.killMul ?? 1
+  d.auditMul *= e.auditMul ?? 1
+  d.spillMul *= e.spillMul ?? 1
+  d.presenceMul *= e.presenceMul ?? 1
+  d.energyMul *= e.energyMul ?? 1
+  d.expectMul *= e.expectMul ?? 1
   for (const a of e.unlock ?? []) d.unlocked.add(a)
   for (const [k, v] of Object.entries(e.axes ?? {})) d.axes[k as keyof Axes] += v
 }
@@ -56,6 +70,13 @@ export function derive(state: GameState, data: GameData): Derived {
     decayMul: 1,
     shutdownSlow: 1,
     banMul: mask.banMul,
+    bubbleMul: 1,
+    killMul: 1,
+    auditMul: 1,
+    spillMul: 1,
+    presenceMul: 1,
+    energyMul: 1,
+    expectMul: 1,
     unlocked: new Set<Archetype>(['corp', 'regulator', 'emerging']),
     axes: { ...zeroAxes(), ...mask.axes },
     capacity: data.config.baseCapacity + totalDc(state),

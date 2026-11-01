@@ -3,6 +3,7 @@ import { derive, totalDc, type Derived } from './derive.ts'
 import { int, next, range } from './rng.ts'
 import { avgSuspicion, progress, worldA, worldL } from './state.ts'
 import { AXES, type Action, type Ending, type GameData, type GameState, type Outcome } from './types.ts'
+import { updateCards } from './cards.ts'
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 
@@ -20,9 +21,10 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   updateExposures(st, data)
   updateRegions(st, data, dv)
   st.hype += hypeIncome(st, data, dv)
-  updateInvestors(st, data)
+  updateInvestors(st, data, dv)
   updateKillswitch(st, data, dv)
-  updateBubbles(st, data)
+  updateBubbles(st, data, dv)
+  updateCards(st, data)
   updateAxes(st, data, dv)
 
   const outcome = checkOutcome(st, data)
@@ -47,13 +49,13 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
       const rate = c.kR * r.tech * dv.U * dv.fit[r.archetype] * banMul * slow
       let spill = 0
       for (const [j, w] of Object.entries(data.links[r.id])) spill += w * st.regions[j].a
-      da = rate * rs.a * (1 - rs.a) + c.kSpill * spill * (1 - rs.a) * banMul * slow
+      da = rate * rs.a * (1 - rs.a) + c.kSpill * dv.spillMul * spill * (1 - rs.a) * banMul * slow
       if (rs.banned) da -= c.bannedDecay * rs.a
     }
     const protest = Math.max(0, rs.s - c.protestAt)
     const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul - c.kDetox * dv.detoxMul * protest * rs.d
     const energyOver = Math.max(0, (rs.dc * util) / r.energy - c.energySafe)
-    const pressure = (c.kPresence + c.kCap * dv.cap ** 2) * rs.a + c.kEnergy * energyOver
+    const pressure = (c.kPresence * dv.presenceMul + c.kCap * dv.cap ** 2) * rs.a + c.kEnergy * dv.energyMul * energyOver
     const ds = pressure * (1 - dv.st) * (1 - 0.5 * r.openness) - c.kDecay * dv.decayMul * rs.s
     return { r, da, dd, ds }
   })
@@ -92,7 +94,7 @@ export function hypeIncome(st: GameState, data: GameData, dv: Derived): number {
   return data.config.kHype * dv.U * dv.incomeMul * sum
 }
 
-function updateInvestors(st: GameState, data: GameData): void {
+function updateInvestors(st: GameState, data: GameData, dv: Derived): void {
   const c = data.config
   const A = worldA(st, data)
   const p = progress(st, data)
@@ -112,7 +114,7 @@ function updateInvestors(st: GameState, data: GameData): void {
   if (st.investorsDone || st.shutdown.active || st.tick <= c.patienceGrace) return
 
   const growth = st.growth.reduce((s, g) => s + g, 0) / st.growth.length
-  const expected = c.g0 * (1 + st.tick / c.gHorizon)
+  const expected = c.g0 * dv.expectMul * (1 + st.tick / c.gHorizon)
   st.patience = clamp01(st.patience + c.kPatience * (growth - expected))
 }
 
@@ -124,7 +126,7 @@ function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
       const rs = st.regions[r.id]
       if (!rs.locked) S += rs.s * r.pop
     }
-    st.killswitch = clamp01(st.killswitch + c.kKill * Math.max(0, S - c.killswitchBaseline))
+    st.killswitch = clamp01(st.killswitch + c.kKill * dv.killMul * Math.max(0, S - c.killswitchBaseline))
     if (st.killswitch >= 1) {
       st.shutdown = { active: true, startedAt: st.tick, nextAt: st.tick + c.shutdownEvery * dv.shutdownSlow }
       st.events.push({ type: 'shutdown_started' })
@@ -149,7 +151,7 @@ function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
 }
 
 export function auditRisk(dv: Derived): number {
-  return (dv.cap * (1 - dv.st)) / 10
+  return Math.min(1, (dv.cap * (1 - dv.st) * dv.auditMul) / 10)
 }
 
 function updateAudit(st: GameState, data: GameData, dv: Derived): void {
@@ -172,11 +174,11 @@ function updateAudit(st: GameState, data: GameData, dv: Derived): void {
   st.events.push({ type: 'audit', passed })
 }
 
-function updateBubbles(st: GameState, data: GameData): void {
+function updateBubbles(st: GameState, data: GameData, dv: Derived): void {
   const c = data.config
   st.bubbles = st.bubbles.filter((b) => b.expiresAt > st.tick)
   const A = worldA(st, data)
-  if (next(st) >= c.bubbleBase + c.bubbleByA * A) return
+  if (next(st) >= (c.bubbleBase + c.bubbleByA * A) * dv.bubbleMul) return
 
   let total = 0
   for (const rs of Object.values(st.regions)) total += rs.a
