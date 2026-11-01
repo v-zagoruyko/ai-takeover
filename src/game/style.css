@@ -71,11 +71,13 @@ button.on { background: #2ed6c4; color: #0b0e14; border-color: #2ed6c4; }
 .axis { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
 .axis span { width: 120px; flex: none; } .axis i { height: 10px; background: #2ed6c4; border-radius: 3px; }
 
-.event-card { position: fixed; z-index: 4; left: calc(50% - 185px); top: 50%; transform: translate(-50%, -50%); width: 460px;
+.event-card { position: fixed; z-index: 4; left: calc(50% - 185px); top: 50%; transform: translate(-50%, -50%); width: 480px; max-height: 94vh; overflow-y: auto;
   background: #151a25; border: 1px solid #3a4258; border-radius: 14px; padding: 18px 20px; box-shadow: 0 24px 70px rgba(0,0,0,.6);
   animation: card-in .25s ease-out; }
 .event-card[hidden] { display: none; }
 @keyframes card-in { from { opacity: 0; transform: translate(-50%, -46%) scale(.96); } }
+.event-card .art { display: block; width: calc(100% + 40px); margin: -18px -20px 12px; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 14px 14px 0 0; border-bottom: 1px solid #3a4258; }
 .event-card > small { color: #ffd166; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .event-card h2 { margin: 4px 0 8px; font-size: 22px; }
 .event-card p { margin: 0 0 12px; color: #c4cad8; }

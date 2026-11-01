@@ -103,7 +103,9 @@ function showCard(): void {
       (c, i) => `<button data-choose="${i}"><b>${fillCard(c.text, aiName, region)}</b><small>${describeEffect(c.effects)}</small></button>`,
     )
     .join('')
-  cardEl.innerHTML = `<small>Событие${region ? ` · ${regionNames[region]}` : ''}</small><h2>${card.title}</h2>
+  // illustrations live in public/cards/<id>.jpg; a card without one simply shows no picture
+  cardEl.innerHTML = `<img class="art" src="cards/${id}.jpg" alt="" onerror="this.remove()">
+    <small>Событие${region ? ` · ${regionNames[region]}` : ''}</small><h2>${card.title}</h2>
     <p>${fillCard(card.text, aiName, region)}</p><div class="choices">${choices}</div>`
   cardEl.hidden = false
 }
