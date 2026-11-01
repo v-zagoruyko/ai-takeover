@@ -10,10 +10,8 @@
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc",
     "dev": "vite --host 127.0.0.1",
-    "build:web": "tsc -p tsconfig.web.json",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "dev:old": "node scripts/dev.mjs --watch",
     "api": "node server/main.ts"
   },
   "devDependencies": {
