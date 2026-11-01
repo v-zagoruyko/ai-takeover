@@ -78,5 +78,11 @@
   "maxTicks": 3000,
   "cardFirst": 90,
   "cardMin": 70,
-  "cardMax": 130
+  "cardMax": 130,
+  "worldJitter": 0.15,
+  "modifiersPerGame": 2,
+  "trendSigma": 0.04,
+  "trendTheta": 0.02,
+  "trendMin": 0.6,
+  "trendMax": 1.4
 }

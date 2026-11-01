@@ -54,6 +54,7 @@ export function renderTop(v: View): string {
       <div class="speeds">${speeds}</div>
       <button class="mute" data-mute title="Звук (M)">${icon(v.muted ? 'muted' : 'sound')}</button>
       <div class="hype" data-tip="hype">${icon('coins')}${Math.floor(state.hype)}</div>
+      <div class="world-ic" data-tip="world">${icon('globe')}Мир</div>
     </div>
     ${meter({ ic: 'target', label: 'Под контролем', value: worldL(state, data), tone: 'goal', tip: 'goal', mark: data.config.winL, markLabel: 'победа', wide: true })}
     ${meter({ ic: 'users', label: 'Внедрение', value: worldA(state, data), tone: 'adoption', tip: 'adoption' })}
@@ -106,13 +107,14 @@ function regionBlock(v: View): string {
   ]
     .filter(Boolean)
     .join('')
-  const banAt = c.banBase - c.banOpenness * r.openness
+  const w = state.world.regions[r.id]
+  const banAt = c.banBase - c.banOpenness * w.openness
   return `<section class="block region">
     <div class="block-h">${icon('globe')}${regionNames[r.id]}${status ? `<span class="chips">${status}</span>` : ''}</div>
     ${meter({ ic: 'users', label: 'Внедрение', value: rs.a, tone: 'adoption', tip: 'region_a' })}
     ${meter({ ic: 'link', label: 'Зависимость', value: rs.d, tone: 'goal', tip: 'region_d', mark: c.lockAt, markLabel: 'регион твой навсегда' })}
     ${meter({ ic: 'eye', label: 'Подозрение', value: rs.s, tone: 'suspicion', tip: 'region_s', mark: banAt, markLabel: 'запрет' })}
-    <small class="meta">${icon('server')}дата-центров ${rs.dc} · энергосеть держит ${r.energy}</small></section>`
+    <small class="meta">${icon('server')}дата-центров ${rs.dc} · энергосеть держит ${w.energy}</small></section>`
 }
 
 // ---------- sidebar: tabs ----------

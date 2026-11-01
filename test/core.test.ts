@@ -78,6 +78,7 @@ test('config validation rejects values that would produce NaN', () => {
     upgrades: Object.values(data.upgrades),
     masks: Object.values(data.masks),
     cards: data.cards,
+    modifiers: data.modifiers,
   })
   assert.throws(() => buildData(raw({ growthWindow: 0 })), /growthWindow/)
   assert.throws(() => buildData(raw({ milestoneHype: [1] })), /milestones/)
@@ -189,4 +190,25 @@ test('cards: every card text and choice is well-formed', () => {
     assert.ok(c.title && c.text, c.id)
     for (const ch of c.choices) assert.ok(ch.text, `${c.id}: empty choice`)
   }
+})
+
+test('world: each seed gets its own parameters and modifiers, same seed the same world', () => {
+  const a = createState(data, { seed: 1, startRegion: 'north_america', mask: 'assistant' })
+  const b = createState(data, { seed: 2, startRegion: 'north_america', mask: 'assistant' })
+  const a2 = createState(data, { seed: 1, startRegion: 'north_america', mask: 'assistant' })
+  assert.deepEqual(a.world, a2.world)
+  assert.notDeepEqual(a.world.regions, b.world.regions)
+  assert.equal(a.world.modifiers.length, data.config.modifiersPerGame)
+  assert.equal(new Set(a.world.modifiers).size, a.world.modifiers.length)
+  for (const p of Object.values(a.world.regions)) {
+    assert.ok(p.tech > 0 && p.tech <= 1 && p.openness > 0 && p.openness <= 1 && p.energy >= 1)
+  }
+})
+
+test('world: trends drift but stay within bounds', () => {
+  let s = newGame(9)
+  for (let i = 0; i < 400; i++) s = step(s, data, [])
+  const trends = Object.values(s.regions).map((r) => r.trend)
+  assert.ok(trends.some((t) => Math.abs(t - 1) > 0.02), 'trends should move')
+  for (const t of trends) assert.ok(t >= data.config.trendMin && t <= data.config.trendMax)
 })

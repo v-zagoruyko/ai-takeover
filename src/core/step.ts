@@ -19,6 +19,7 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   // audit and exposures first: their suspicion and killswitch effects must show up in this tick's bans and shutdown
   updateAudit(st, data, dv)
   updateExposures(st, data)
+  updateTrends(st, data)
   updateRegions(st, data, dv)
   st.hype += hypeIncome(st, data, dv)
   updateInvestors(st, data, dv)
@@ -35,6 +36,16 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   return st
 }
 
+/** mean-reverting random walk per region (Ornstein-Uhlenbeck): growth surges and slumps that differ every game */
+function updateTrends(st: GameState, data: GameData): void {
+  const c = data.config
+  for (const r of data.regions) {
+    const rs = st.regions[r.id]
+    const t = rs.trend + (next(st) - 0.5) * 2 * c.trendSigma - (rs.trend - 1) * c.trendTheta
+    rs.trend = Math.min(c.trendMax, Math.max(c.trendMin, t))
+  }
+}
+
 function updateRegions(st: GameState, data: GameData, dv: Derived): void {
   const c = data.config
   const slow = st.tick < st.rebrand.slowUntil ? c.rebrandSlow : 1
@@ -43,10 +54,11 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
   // compute all deltas from the same snapshot, then apply
   const deltas = data.regions.map((r) => {
     const rs = st.regions[r.id]
+    const w = st.world.regions[r.id]
     const banMul = rs.banned ? dv.banMul : 1
     let da = 0
     if (dv.unlocked.has(r.archetype)) {
-      const rate = c.kR * r.tech * dv.U * dv.fit[r.archetype] * banMul * slow
+      const rate = c.kR * w.tech * rs.trend * dv.U * dv.fit[r.archetype] * banMul * slow
       let spill = 0
       for (const [j, w] of Object.entries(data.links[r.id])) spill += w * st.regions[j].a
       da = rate * rs.a * (1 - rs.a) + c.kSpill * dv.spillMul * spill * (1 - rs.a) * banMul * slow
@@ -54,9 +66,9 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
     }
     const protest = Math.max(0, rs.s - c.protestAt)
     const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul - c.kDetox * dv.detoxMul * protest * rs.d
-    const energyOver = Math.max(0, (rs.dc * util) / r.energy - c.energySafe)
+    const energyOver = Math.max(0, (rs.dc * util) / w.energy - c.energySafe)
     const pressure = (c.kPresence * dv.presenceMul + c.kCap * dv.cap ** 2) * rs.a + c.kEnergy * dv.energyMul * energyOver
-    const ds = pressure * (1 - dv.st) * (1 - 0.5 * r.openness) - c.kDecay * dv.decayMul * rs.s
+    const ds = pressure * (1 - dv.st) * (1 - 0.5 * w.openness) - c.kDecay * dv.decayMul * rs.s
     return { r, da, dd, ds }
   })
 
@@ -77,7 +89,7 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
       rs.locked = false
       st.events.push({ type: 'unlock', region: r.id })
     }
-    const banAt = c.banBase - c.banOpenness * r.openness
+    const banAt = c.banBase - c.banOpenness * st.world.regions[r.id].openness
     if (!rs.locked && !rs.banned && rs.s > banAt) {
       rs.banned = true
       st.events.push({ type: 'ban', region: r.id })
@@ -90,7 +102,7 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
 
 export function hypeIncome(st: GameState, data: GameData, dv: Derived): number {
   let sum = 0
-  for (const r of data.regions) sum += st.regions[r.id].a * r.pop * r.wealth
+  for (const r of data.regions) sum += st.regions[r.id].a * r.pop * st.world.regions[r.id].wealth
   return data.config.kHype * dv.U * dv.incomeMul * sum
 }
 

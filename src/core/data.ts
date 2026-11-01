@@ -1,9 +1,10 @@
 import cards from '../../data/cards.json' with { type: 'json' }
 import config from '../../data/config.json' with { type: 'json' }
 import masks from '../../data/masks.json' with { type: 'json' }
+import modifiers from '../../data/modifiers.json' with { type: 'json' }
 import regions from '../../data/regions.json' with { type: 'json' }
 import upgrades from '../../data/upgrades.json' with { type: 'json' }
-import { ARCHETYPES, type Card, type Config, type GameData, type Mask, type Region, type Upgrade } from './types.ts'
+import { ARCHETYPES, type Card, type Config, type GameData, type Mask, type Region, type Upgrade, type WorldModifier } from './types.ts'
 
 export interface RawData {
   config: Config
@@ -11,6 +12,7 @@ export interface RawData {
   upgrades: Upgrade[]
   masks: Mask[]
   cards: Card[]
+  modifiers: WorldModifier[]
 }
 
 /** normalizes populations, symmetrizes links and validates references */
@@ -33,6 +35,9 @@ export function buildData(raw: RawData): GameData {
   for (const u of raw.upgrades) {
     for (const req of u.requires ?? []) if (!ups[req]) throw new Error(`upgrade ${u.id}: unknown requirement ${req}`)
   }
+  for (const m of raw.modifiers) {
+    for (const r of m.regions ?? []) if (!ids.has(r)) throw new Error(`modifier ${m.id}: unknown region ${r}`)
+  }
   for (const card of raw.cards) {
     for (const n of card.when.needs ?? []) if (!ups[n]) throw new Error(`card ${card.id}: unknown upgrade ${n}`)
     if (card.choices.length < 2) throw new Error(`card ${card.id}: needs at least two choices`)
@@ -43,6 +48,7 @@ export function buildData(raw: RawData): GameData {
     upgrades: ups,
     masks: Object.fromEntries(raw.masks.map((m) => [m.id, m])),
     cards: raw.cards,
+    modifiers: raw.modifiers,
     links,
   }
 }
@@ -75,5 +81,6 @@ export function loadData(): GameData {
     upgrades: upgrades as Upgrade[],
     masks: masks as Mask[],
     cards: cards as Card[],
+    modifiers: modifiers as WorldModifier[],
   })
 }

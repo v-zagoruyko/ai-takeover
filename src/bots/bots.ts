@@ -53,7 +53,7 @@ function dcRegion(state: GameState, data: GameData): string | null {
     const rs = state.regions[r.id]
     if (rs.banned) continue
     // prefer energy headroom, then presence (locked regions are safe from shutdown)
-    const score = r.energy - rs.dc + rs.a + (rs.locked ? 2 : 0)
+    const score = state.world.regions[r.id].energy - rs.dc + rs.a + (rs.locked ? 2 : 0)
     if (score > bestScore) {
       bestScore = score
       best = r.id

@@ -94,6 +94,7 @@ export function derive(state: GameState, data: GameData): Derived {
     }
     apply(d, up.effects)
   }
+  for (const [k, v] of Object.entries(state.world.global)) d[k as keyof typeof state.world.global] *= v
   d.U = Math.max(d.U, 0.1)
   d.st = Math.min(d.st, 0.8)
   d.infra = Math.min(d.infra, 1)

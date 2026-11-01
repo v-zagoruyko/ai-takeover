@@ -167,9 +167,38 @@ export interface Config {
   symbiosisSpread: number
   symbiosisMaxS: number
   maxTicks: number
+  worldJitter: number
+  modifiersPerGame: number
+  trendSigma: number
+  trendTheta: number
+  trendMin: number
+  trendMax: number
   cardFirst: number
   cardMin: number
   cardMax: number
+}
+
+/** per-game twist: shifts region parameters and/or global multipliers */
+export interface WorldModifier {
+  id: string
+  title: string
+  text: string
+  regions?: string[]
+  archetypes?: Archetype[]
+  tech?: number
+  openness?: number
+  wealth?: number
+  energy?: number
+  global?: Partial<Record<WorldGlobal, number>>
+}
+export type WorldGlobal = 'killMul' | 'expectMul' | 'bubbleMul' | 'energyMul' | 'presenceMul' | 'spillMul'
+
+/** effective region parameters for this game (static data + jitter + modifiers) */
+export interface RegionParams {
+  tech: number
+  openness: number
+  wealth: number
+  energy: number
 }
 
 export interface GameData {
@@ -178,6 +207,7 @@ export interface GameData {
   upgrades: Record<string, Upgrade>
   masks: Record<string, Mask>
   cards: Card[]
+  modifiers: WorldModifier[]
   /** symmetric neighbour weights: links[a][b] === links[b][a] */
   links: Record<string, Record<string, number>>
 }
@@ -189,6 +219,8 @@ export interface RegionState {
   banned: boolean
   locked: boolean
   dc: number
+  /** slowly drifting growth multiplier, so the wave never spreads the same way twice */
+  trend: number
 }
 
 export interface Bubble {
@@ -258,6 +290,9 @@ export interface GameState {
   /** pending event card waiting for the player's choice */
   card: { id: string; region: string | null } | null
   cardsSeen: string[]
+  /** how many cards each region already got; new cards prefer fresh regions */
+  cardRegions: Record<string, number>
+  world: { regions: Record<string, RegionParams>; modifiers: string[]; global: Partial<Record<WorldGlobal, number>> }
   nextCardAt: number
   /** events emitted during the last step only */
   events: GameEvent[]

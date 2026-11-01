@@ -168,3 +168,9 @@ button.on:hover:not(:disabled) { background: #5ee6d8; }
 .event-card .choices { display: flex; flex-direction: column; gap: 6px; }
 .event-card .choices button { text-align: left; padding: 9px 12px; }
 .event-card .choices small { display: block; margin-top: 2px; color: #8a93a8; font-size: 12px; }
+.world-ic { display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; background: rgba(46, 214, 196, .1); color: #7fe9de; font-size: 12px; cursor: help; }
+.world-list { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 8px; }
+.world-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.04); }
+.world-list .i { width: 20px; height: 20px; color: #2ed6c4; margin-top: 2px; }
+.world-list small { display: block; color: #a9b0c2; font-size: 12px; margin-top: 2px; }
+#tip p b { display: inline; margin: 0; font-size: 12px; }

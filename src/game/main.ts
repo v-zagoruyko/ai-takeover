@@ -32,6 +32,7 @@ let oldName = ''
 let news: string[] = []
 let acc = 0
 let tab: Tab = 'products'
+let worldIntro = false
 
 function view(): View {
   return { state: state!, data, dv: derive(state!, data), speed, selected, aiName, muted: scene.muted, tab }
@@ -153,7 +154,7 @@ document.addEventListener('mouseover', (e) => {
     tipEl.hidden = true
     return
   }
-  const t = tips[el.dataset.tip!]
+  const t = el.dataset.tip === 'world' ? worldTip() : tips[el.dataset.tip!]
   if (!t) return
   tipEl.innerHTML = `<b>${t.title}</b>${t.lines.map((l) => `<p>${l}</p>`).join('')}`
   tipEl.hidden = false
@@ -165,6 +166,26 @@ document.addEventListener('mouseover', (e) => {
   tipEl.style.left = `${left}px`
   tipEl.style.top = `${top}px`
 })
+
+function worldModifiers() {
+  return (state?.world.modifiers ?? []).map((id) => data.modifiers.find((m) => m.id === id)!)
+}
+
+function worldTip() {
+  return { title: 'Мир этой партии', lines: worldModifiers().map((m) => `<b>${m.title}.</b> ${m.text}`) }
+}
+
+/** each game rolls a couple of world modifiers; show them before the clock starts */
+function showWorldIntro(): void {
+  worldIntro = true
+  const items = worldModifiers()
+    .map((m) => `<li>${icon('globe')}<span><b>${m.title}</b><small>${m.text}</small></span></li>`)
+    .join('')
+  cardEl.innerHTML = `<small>Мир этой партии</small><h2>Каждая партия — свой мир</h2>
+    <p>Регионы немного отличаются от прошлой игры, а ещё в этот раз:</p><ul class="world-list">${items}</ul>
+    <div class="choices"><button data-world-ok><b>Поехали</b><small>Условия можно перечитать, наведя на «Мир» в верхней панели</small></button></div>`
+  cardEl.hidden = false
+}
 
 function pause(): void {
   if (speed > 0) lastSpeed = speed
@@ -193,7 +214,7 @@ function act(action: Action): boolean {
 
 const host: SceneHost = {
   frame(deltaMs) {
-    if (!state || state.outcome || speed <= 0 || state.card) return
+    if (!state || state.outcome || speed <= 0 || state.card || worldIntro) return
     acc += (Math.min(deltaMs, 250) / 1000) * speed
     let n = 0
     while (acc >= 1 && n < 20 && !state.outcome && speed > 0) {
@@ -264,7 +285,7 @@ function startGame(): void {
   cardEl.hidden = true
   scene.sfx('start')
   scene.burstAt(startRegion, 'cyan', 30)
-  window.setTimeout(() => hint('start'), 1200)
+  showWorldIntro()
   render()
 }
 
@@ -332,6 +353,13 @@ document.addEventListener('click', (e) => {
       act({ type, upgrade: id })
       return
     }
+  }
+  if (t.closest('[data-world-ok]')) {
+    worldIntro = false
+    cardEl.hidden = true
+    scene.sfx('choose')
+    window.setTimeout(() => hint('start'), 600)
+    return render()
   }
   const choose = t.closest<HTMLElement>('[data-choose]')
   if (choose) {

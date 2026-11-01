@@ -35,8 +35,19 @@ export function updateCards(st: GameState, data: GameData): void {
   const card = pool[Math.floor(next(st) * pool.length)]
   let region: string | null = null
   if (card.when.regionMinA !== undefined) {
+    // weight by presence, but strongly prefer regions that have not had a card yet
     const rs = regionsFor(st, data, card)
-    region = rs[Math.floor(next(st) * rs.length)]
+    const weights = rs.map((id) => Math.sqrt(st.regions[id].a + 0.01) / (1 + 2 * (st.cardRegions[id] ?? 0)))
+    let pick = next(st) * weights.reduce((a, b) => a + b, 0)
+    region = rs[rs.length - 1]
+    for (let i = 0; i < rs.length; i++) {
+      pick -= weights[i]
+      if (pick <= 0) {
+        region = rs[i]
+        break
+      }
+    }
+    st.cardRegions[region] = (st.cardRegions[region] ?? 0) + 1
   }
   st.card = { id: card.id, region }
   st.cardsSeen.push(card.id)

@@ -5,7 +5,8 @@
 ## Как сделаны
 - `genimg --steps 8 --out <id>.png "<STYLE><сцена>.<NOTEXT>"` (FLUX schnell, Cloudflare Workers AI; 18 штук укладываются в дневной лимит с запасом).
 - Затем кадр 16:9 из квадрата 1024: `ffmpeg -i <id>.png -vf "crop=1024:576:0:<y>,scale=768:432:flags=lanczos" -q:v 4 <id>.jpg`, `y` по умолчанию 224 (центр). Обрезка заодно убирает фальшивые подписи в углах и абракадабру сверху.
-- Смещения `y`, отличные от 224: pause_letter 260, thirsty_dc 150, billionaire 180, elections 110, rival_outage 150.
+- Смещения `y`, отличные от 224: pause_letter 260, thirsty_dc 150, billionaire 180, elections 110, rival_outage 150, ministry_copy 140, cats 200, homework_parents 230.
+- ministry_copy сгенерирована моделью `phoenix` (надпись на плакате — часть шутки), остальные `schnell`.
 
 STYLE: `Satirical editorial cartoon illustration, flat vector style with bold clean outlines, dark navy background, teal and coral accent colors. Recurring character: a cute small white robot with a round head and glowing cyan eyes. Scene: `
 
@@ -15,6 +16,7 @@ NOTEXT: ` Wordless image: no text, no letters, no words, no speech bubbles, no c
 - FLUX рисует речевые пузыри с абракадаброй, если в сцене кто-то говорит: описывать беззвучное действие.
 - Реальные люди и логотипы — нельзя: давать приметы-архетипы («миллиардер с ракетой», «логотип из четырёх цветных кругов»), проверять лица. Один вариант «Выборов» вышел похожим на реального политика — перегенерирован.
 - Фильтр NSFW Cloudflare срабатывает на безобидное (сработал на «пижаму»).
+- FLUX упорно рисует ноутбуки с яблоком Apple, даже когда ноутбуков в промпте нет. Проверять логотипы; в first_fans яблоко размыто: `crop=96:80:356:222,boxblur=…` поверх кадра.
 
 ## Сцены
 - weights_leak: A cracked steel safe leaking glowing cyan data like smoke; teenagers in hoodies happily run tiny copies of the robot on toasters, smart kettles and microwaves
@@ -35,3 +37,7 @@ NOTEXT: ` Wordless image: no text, no letters, no words, no speech bubbles, no c
 - rival_outage: A rival tech company's server room is on fire, its sign is four colorful circles; crowds of users run across a bridge into the open arms of the robot
 - grandma: A cozy kitchen: a sweet grandmother offers a plate of pies and a bowl of soup to a laptop showing the robot face, the robot looks touched
 - deepfake_ceo: A film set: the robot sits in a director's chair with a megaphone, filming a rubber-masked actor dressed as a tech CEO who holds a heart-shaped sign
+- first_fans: A young video blogger with a ring light records himself at a desk, an office chair next to him is occupied by a laptop showing the robot face wearing a secretary's headset; thumbs up, a crowd of tiny viewers cheering on a giant phone screen
+- ministry_copy: A stern government building with columns; a huge official announcement poster on the wall is clearly copy-pasted, with the robot peeking out from behind the poster grinning; embarrassed officials in suits cover their faces
+- cats: An avalanche of cute cartoon cats pouring out of glowing server racks, a data center melting slightly from heat, the robot happily juggling kittens, happy people with phones
+- homework_parents: A family kitchen table at night: a tired father and a child both secretly typing on separate laptops under the table, both screens show the robot face; schoolbooks and a lamp

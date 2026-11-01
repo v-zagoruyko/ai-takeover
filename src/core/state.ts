@@ -1,5 +1,5 @@
-import { int } from './rng.ts'
-import { AXES, type Axes, type GameData, type GameState, type RegionState } from './types.ts'
+import { int, next, range } from './rng.ts'
+import { AXES, type Axes, type GameData, type GameState, type RegionParams, type RegionState, type WorldGlobal } from './types.ts'
 
 export interface NewGame {
   seed: number
@@ -16,7 +16,7 @@ export function createState(data: GameData, opts: NewGame): GameState {
   const c = data.config
   const regions: Record<string, RegionState> = {}
   for (const r of data.regions) {
-    regions[r.id] = { a: r.id === start.id ? c.startA : 0, d: 0, s: 0, banned: false, locked: false, dc: 0 }
+    regions[r.id] = { a: r.id === start.id ? c.startA : 0, d: 0, s: 0, banned: false, locked: false, dc: 0, trend: 1 }
   }
   const state: GameState = {
     tick: 0,
@@ -41,13 +41,47 @@ export function createState(data: GameData, opts: NewGame): GameState {
     prevProgress: 0,
     card: null,
     cardsSeen: [],
+    cardRegions: {},
+    world: { regions: {}, modifiers: [], global: {} },
     nextCardAt: c.cardFirst,
     events: [],
     outcome: null,
   }
   state.audit.at = int(state, c.auditMin, c.auditMax)
+  rollWorld(state, data)
   state.prevProgress = progress(state, data)
   return state
+}
+
+/** this game's world: jittered region parameters plus a few random modifiers */
+function rollWorld(state: GameState, data: GameData): void {
+  const c = data.config
+  const j = () => range(state, 1 - c.worldJitter, 1 + c.worldJitter)
+  const params: Record<string, RegionParams> = {}
+  for (const r of data.regions) {
+    params[r.id] = { tech: r.tech * j(), openness: r.openness * j(), wealth: r.wealth * j(), energy: Math.max(1, Math.round(r.energy * j())) }
+  }
+  const pool = [...data.modifiers]
+  const picked: string[] = []
+  const global: Partial<Record<WorldGlobal, number>> = {}
+  for (let k = 0; k < c.modifiersPerGame && pool.length; k++) {
+    const m = pool.splice(Math.floor(next(state) * pool.length), 1)[0]
+    picked.push(m.id)
+    for (const r of data.regions) {
+      if (!(m.regions?.includes(r.id) || m.archetypes?.includes(r.archetype))) continue
+      const p = params[r.id]
+      p.tech *= m.tech ?? 1
+      p.openness *= m.openness ?? 1
+      p.wealth *= m.wealth ?? 1
+      p.energy = Math.max(1, Math.round(p.energy * (m.energy ?? 1)))
+    }
+    for (const [k2, v] of Object.entries(m.global ?? {})) global[k2 as WorldGlobal] = (global[k2 as WorldGlobal] ?? 1) * v
+  }
+  for (const p of Object.values(params)) {
+    p.tech = Math.min(1, p.tech)
+    p.openness = Math.min(1, p.openness)
+  }
+  state.world = { regions: params, modifiers: picked, global }
 }
 
 export function worldA(state: GameState, data: GameData): number {
