@@ -28,7 +28,7 @@ let news: string[] = []
 let acc = 0
 
 function view(): View {
-  return { state: state!, data, dv: derive(state!, data), speed, selected, aiName }
+  return { state: state!, data, dv: derive(state!, data), speed, selected, aiName, muted: scene.muted }
 }
 
 // re-render only when markup changed, so buttons are not swapped under the cursor every tick
@@ -125,6 +125,8 @@ function act(action: Action): boolean {
   const next = structuredClone(state)
   next.events = []
   if (!applyAction(next, data, action)) return false
+  const sound = ({ buy: 'buy', throttle: 'throttle', unthrottle: 'unthrottle', build_dc: 'build_dc', choose: 'choose' } as const)[action.type as string]
+  if (sound) scene.sfx(sound)
   state = next
   handleEvents(state.events)
   render()
@@ -198,6 +200,7 @@ function startGame(): void {
   pushNews(`${aiName} выходит в публичный доступ в регионе «${regionNames[startRegion]}». Пресс-релиз обещает «помогать людям».`)
   overlay.hidden = true
   cardEl.hidden = true
+  scene.sfx('start')
   scene.burstAt(startRegion, 'cyan', 30)
   render()
 }
@@ -221,8 +224,13 @@ function showGameOver(): void {
 
 document.addEventListener('click', (e) => {
   const t = e.target as Element
+  if (t.closest('[data-mute]')) {
+    scene.setMuted(!scene.muted)
+    return render()
+  }
   const speedBtn = t.closest<HTMLElement>('[data-speed]')
   if (speedBtn) {
+    scene.sfx('click')
     speed = Number(speedBtn.dataset.speed)
     if (speed > 0) lastSpeed = speed
     return render()
@@ -269,6 +277,10 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault()
     if (speed > 0) pause()
     else speed = lastSpeed
+    render()
+  }
+  if (e.code === 'KeyM') {
+    scene.setMuted(!scene.muted)
     render()
   }
   if (['1', '2', '3'].includes(e.key)) {

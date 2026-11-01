@@ -13,6 +13,16 @@ interface MapData {
 }
 const MAP = mapJson as unknown as MapData
 
+// Kenney sound packs (CC0), normalized into public/sfx
+export const SFX = [
+  'click', 'buy', 'bubble', 'bubble_bad', 'throttle', 'unthrottle', 'build_dc', 'card', 'choose', 'success', 'fail',
+  'ban', 'unban', 'lock', 'funding', 'audit_warning', 'audit_pass', 'audit_fail', 'rebrand', 'exposed', 'shutdown',
+  'dc_shutdown', 'win', 'lose', 'start',
+] as const
+export type Sfx = (typeof SFX)[number]
+const SFX_VOLUME: Partial<Record<Sfx, number>> = { click: 0.35, bubble: 0.5, shutdown: 0.9, dc_shutdown: 0.7, win: 0.8, lose: 0.8 }
+const MUTE_KEY = 'ai-takeover:muted'
+
 /** what the scene needs from the game controller */
 export interface SceneHost {
   frame(deltaMs: number): void
@@ -79,6 +89,8 @@ export class MapScene extends Phaser.Scene {
   private state: GameState | null = null
   private fitZoom = 1
   private dragged = false
+  private lastSfx = new Map<Sfx, number>()
+  muted = localStorage.getItem(MUTE_KEY) === '1'
 
   constructor(host: SceneHost, data: GameData) {
     super('map')
@@ -86,7 +98,12 @@ export class MapScene extends Phaser.Scene {
     this.data_ = data
   }
 
+  preload(): void {
+    for (const k of SFX) this.load.audio(k, `sfx/${k}.mp3`)
+  }
+
   create(): void {
+    this.sound.mute = this.muted
     this.makeTextures()
     this.drawBackground()
     this.drawRegions()
@@ -329,6 +346,7 @@ export class MapScene extends Phaser.Scene {
         e.stopPropagation()
         this.popped.add(b.id)
         this.bursts[b.poisoned ? 'purple' : 'gold'].explode(18, c.x, c.y)
+        this.sfx(b.poisoned ? 'bubble_bad' : 'bubble')
         this.floatText(c.x, c.y, b.poisoned ? `+${Math.round(b.value)} ☣` : `+${Math.round(b.value)}`, b.poisoned ? '#b06cff' : '#ffd166')
         c.disableInteractive()
         this.tweens.add({ targets: c, alpha: 0, duration: 120 })
@@ -413,48 +431,84 @@ export class MapScene extends Phaser.Scene {
     for (const e of events) {
       switch (e.type) {
         case 'ban':
+          this.sfx('ban')
           this.flashRegion(e.region, 0.9)
           this.burstAt(e.region, 'red', 24)
           cam.shake(150, 0.002)
           break
         case 'unban':
+          this.sfx('unban')
           this.burstAt(e.region, 'cyan', 16)
           break
         case 'lock':
+          this.sfx('lock')
           this.burstAt(e.region, 'gold', 40)
           this.tweens.add({ targets: this.regions.get(e.region)!.lockLine, alpha: { from: 0, to: 1 }, duration: 250, repeat: 2 })
           break
         case 'funding_round':
+          this.sfx('funding')
           cam.flash(250, 80, 66, 20)
           break
         case 'audit_warning':
+          this.sfx('audit_warning')
           cam.flash(300, 90, 20, 30)
           break
         case 'audit':
+          this.sfx(e.passed ? 'audit_pass' : 'audit_fail')
           if (!e.passed) {
             cam.shake(350, 0.006)
             cam.flash(300, 140, 20, 40)
           }
           break
         case 'rebrand':
+          this.sfx('rebrand')
           for (const id of this.regions.keys()) if ((this.state?.regions[id].a ?? 0) > 0.02) this.burstAt(id, 'cyan', 6)
           break
         case 'rebrand_exposed':
+          this.sfx('exposed')
           cam.flash(300, 140, 20, 40)
           break
         case 'shutdown_started':
+          this.sfx('shutdown')
           cam.shake(700, 0.012)
           cam.flash(500, 180, 0, 30)
           break
         case 'dc_shutdown':
+          this.sfx('dc_shutdown')
           this.flashRegion(e.region, 1)
           this.burstAt(e.region, 'red', 36)
           cam.shake(200, 0.004)
+          break
+        case 'card':
+          this.sfx('card')
+          break
+        case 'card_resolved': {
+          const card = this.data_.cards.find((c) => c.id === e.card)
+          if (card?.choices[e.choice].effects.chance !== undefined) this.sfx(e.success ? 'success' : 'fail')
+          break
+        }
+        case 'game_over':
+          this.sfx(e.outcome.kind === 'win' || e.outcome.kind === 'win_last_breath' ? 'win' : 'lose')
           break
         default:
           break
       }
     }
+  }
+
+  /** same sound at most once per 90 ms, so a burst of events at ×10 does not turn into noise */
+  sfx(key: Sfx): void {
+    if (this.muted || !this.cache.audio.exists(key)) return
+    const now = this.time.now
+    if (now - (this.lastSfx.get(key) ?? -Infinity) < 90) return
+    this.lastSfx.set(key, now)
+    this.sound.play(key, { volume: SFX_VOLUME[key] ?? 0.6 })
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted
+    this.sound.mute = muted
+    localStorage.setItem(MUTE_KEY, muted ? '1' : '0')
   }
 
   burstAt(region: string, color: 'gold' | 'red' | 'cyan' | 'purple', n: number): void {

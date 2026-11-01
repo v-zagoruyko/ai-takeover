@@ -82,3 +82,4 @@ button.on { background: #2ed6c4; color: #0b0e14; border-color: #2ed6c4; }
 .event-card .choices { display: flex; flex-direction: column; gap: 6px; }
 .event-card .choices button { text-align: left; padding: 9px 12px; }
 .event-card .choices small { display: block; margin-top: 2px; color: #8a93a8; font-size: 12px; }
+.mute { padding: 2px 8px; font-size: 15px; }

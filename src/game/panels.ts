@@ -12,6 +12,7 @@ export interface View {
   speed: number
   selected: string | null
   aiName: string
+  muted: boolean
 }
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`
@@ -40,6 +41,7 @@ export function renderTop(v: View): string {
   return `
     <div class="stat day">День ${state.tick}</div>
     <div class="speeds">${speeds}</div>
+    <button class="mute" data-mute title="Звук (M)">${v.muted ? '🔇' : '🔊'}</button>
     <div class="stat hype">Хайп ${Math.floor(state.hype)}</div>
     ${bar('Внедрение', worldA(state, data), 'adoption', 'Доля мира, которая пользуется тобой')}
     ${bar('Под контролем', worldL(state, data), 'locked', 'Доля мира в заблокированных регионах. 60% — победа')}
