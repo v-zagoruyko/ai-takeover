@@ -4,11 +4,12 @@ import { loadData } from '../core/data.ts'
 import { derive } from '../core/derive.ts'
 import { createState, worldA } from '../core/state.ts'
 import { step } from '../core/step.ts'
-import { AXES, type Action, type GameEvent, type GameState } from '../core/types.ts'
+import type { Action, GameEvent, GameState } from '../core/types.ts'
 import { MapScene, type SceneHost } from './MapScene.ts'
 import { icon } from './icons.ts'
 import { renderSideList, renderSideTop, renderTop, type Tab, type View } from './panels.ts'
-import { ambientNews, describeEffect, endingText, fillCard, hints, maskText, newsFor, regionNames, tips, type HintKey } from './text.ts'
+import { newStats, recordBubble, recordEvents, recordTick, renderSummary, summaryText } from './summary.ts'
+import { ambientNews, describeEffect, fillCard, hints, maskText, newsFor, regionNames, tips, type HintKey } from './text.ts'
 
 const data = loadData()
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -34,6 +35,10 @@ let news: string[] = []
 let acc = 0
 let tab: Tab = 'products'
 let worldIntro = false
+let stats = newStats()
+// clicks on a modal that just appeared are ignored: players are often mid-click on map bubbles
+const ARM_MS = 900
+let armedAt = 0
 
 function view(): View {
   return { state: state!, data, dv: derive(state!, data), speed, selected, aiName, muted: scene.muted, tab }
@@ -78,6 +83,7 @@ function toast(text: string, kind: 'good' | 'bad' | 'info' = 'info'): void {
 
 function handleEvents(events: GameEvent[]): void {
   const ctx = { ai: aiName, old: oldName, region: (id: string) => regionNames[id] ?? id }
+  recordEvents(stats, events, state!, data, aiName)
   for (const e of events) {
     pushNews(newsFor(e, ctx))
     if (e.type === 'audit_warning') {
@@ -124,6 +130,16 @@ function showCard(): void {
     <small>Событие${region ? ` · ${regionNames[region]}` : ''}</small><h2>${card.title}</h2>
     <p>${fillCard(card.text, aiName, region)}</p><div class="choices">${choices}</div>`
   cardEl.hidden = false
+  arm()
+}
+
+/** block the modal's buttons for a moment and show a filling bar until they are live */
+function arm(): void {
+  armedAt = performance.now() + ARM_MS
+  cardEl.classList.remove('arming')
+  void cardEl.offsetWidth // restart the bar animation
+  cardEl.classList.add('arming')
+  window.setTimeout(() => cardEl.classList.remove('arming'), ARM_MS)
 }
 
 // ---------- one-time hints ----------
@@ -191,6 +207,7 @@ function showWorldIntro(): void {
     <p>Регионы немного отличаются от прошлой игры, а ещё в этот раз:</p><ul class="world-list">${items}</ul>
     <div class="choices"><button data-world-ok><b>Поехали</b><small>Условия можно перечитать, наведя на «Мир» в верхней панели</small></button></div>`
   cardEl.hidden = false
+  arm()
 }
 
 function screenGlitch(): void {
@@ -207,6 +224,7 @@ function pause(): void {
 
 function tick(): void {
   state = step(state!, data, [])
+  recordTick(stats, state, data)
   handleEvents(state.events)
   scene.spreadDots(state)
   if (state.tick % 45 === 0 && worldA(state, data) > 0.02) pushNews(ambientNews(aiName))
@@ -242,7 +260,8 @@ const host: SceneHost = {
     render()
   },
   popBubble(id) {
-    act({ type: 'pop_bubble', id })
+    const value = state?.bubbles.find((b) => b.id === id)?.value ?? 0
+    if (act({ type: 'pop_bubble', id })) recordBubble(stats, value)
   },
 }
 
@@ -289,6 +308,8 @@ function startGame(): void {
   aiName = name
   oldName = name
   news = []
+  stats = newStats()
+  recordTick(stats, state, data)
   selected = startRegion
   speed = 1
   acc = 0
@@ -303,20 +324,9 @@ function startGame(): void {
 }
 
 function showGameOver(): void {
-  const o = state!.outcome!
-  const won = o.kind === 'win' || o.kind === 'win_last_breath'
-  const t = endingText[o.ending]
-  const max = Math.max(...AXES.map((k) => state!.axes[k]), 1e-9)
-  const axisNames = { control: 'Контроль', attachment: 'Привязанность', appetite: 'Аппетит', shadow: 'Тень' }
-  const axes = AXES.map(
-    (k) => `<div class="axis"><span>${axisNames[k]}</span><i style="width:${Math.round((state!.axes[k] / max) * 100)}%"></i></div>`,
-  ).join('')
-  overlay.innerHTML = `<div class="card ${won ? 'won' : 'lost'}">
-    <small>${won ? (o.kind === 'win_last_breath' ? 'Победа на последнем дыхании' : 'Победа') : 'Поражение'} · день ${o.tick}</small>
-    <h1>${t.title}</h1><p>${t.text}</p>
-    <h3>Каким ИИ был ${aiName}</h3>${axes}
-    <button id="restart">Ещё раз</button></div>`
+  overlay.innerHTML = renderSummary(state!, data, stats, aiName, worldModifiers())
   overlay.hidden = false
+  overlay.scrollTop = 0
 }
 
 document.addEventListener('click', (e) => {
@@ -366,6 +376,11 @@ document.addEventListener('click', (e) => {
       act({ type, upgrade: id })
       return
     }
+  }
+  if (t.closest('#card [data-choose], #card [data-world-ok]') && performance.now() < armedAt) return
+  if (t.id === 'share') {
+    void navigator.clipboard.writeText(summaryText(state!, data, stats, aiName)).then(() => toast('Итог скопирован', 'good'))
+    return
   }
   if (t.closest('[data-world-ok]')) {
     worldIntro = false
