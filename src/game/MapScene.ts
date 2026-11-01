@@ -323,7 +323,8 @@ export class MapScene extends Phaser.Scene {
       c.setData('base', 0.45)
       c.setData('poisoned', b.poisoned)
       c.setSize(64, 64)
-      c.setInteractive(new Phaser.Geom.Circle(0, 0, 32), Phaser.Geom.Circle.Contains)
+      // container hit areas are in local space with the origin at the top-left corner of setSize, not at the centre
+      c.setInteractive(new Phaser.Geom.Circle(32, 32, 36), Phaser.Geom.Circle.Contains)
       c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
         e.stopPropagation()
         this.popped.add(b.id)

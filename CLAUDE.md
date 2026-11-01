@@ -21,6 +21,11 @@
 - Typecheck: `npm run typecheck`.
 - Клиент: `npm run dev` → http://127.0.0.1:5173 (Vite; сохранение файла перезагружает страницу и сбрасывает партию). Сборка `npm run build` в `dist/`. Пробел — пауза, 1/2/3 — скорость, колесо — зум, перетаскивание — сдвиг карты.
 
+## Деплой
+- https://ai-takeover.zagoruykov.site (www редиректит на основной адрес). Личный VPS по схеме пет-проектов (skill `deploy-pet`): статика Vite в `nginx:alpine` (`Dockerfile`, `nginx.conf` с gzip), Traefik по labels в `docker-compose.yml`, на сервере `/opt/apps/ai-takeover`.
+- CI: `.github/workflows/deploy.yml` по push в `main` — typecheck и тесты, сборка образа в GHCR, деплой по SSH (org-секреты `v-zagoruyko`).
+- Репозиторий публичный; страница помечена `noindex`.
+
 ## Правила
 - Пародии на реальные компании и людей — только изменённые имена; никаких реальных имён, логотипов и портретного сходства.
 - Тон — сатира и чёрный юмор, «интересно смотреть на стриме».
