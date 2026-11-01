@@ -22,6 +22,7 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   updateTrends(st, data)
   updateRegions(st, data, dv)
   st.hype += hypeIncome(st, data, dv)
+  payUpkeep(st, data)
   updateInvestors(st, data, dv)
   updateKillswitch(st, data, dv)
   updateBubbles(st, data, dv)
@@ -65,10 +66,14 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
       if (rs.banned) da -= c.bannedDecay * rs.a
     }
     const protest = Math.max(0, rs.s - c.protestAt)
-    const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul - c.kDetox * dv.detoxMul * protest * rs.d
+    // once shutdowns start, people learn to live without you: dependence grows much slower
+    const depGrowth = st.shutdown.active ? c.shutdownDepGrowth : 1
+    const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul * depGrowth - c.kDetox * dv.detoxMul * protest * rs.d
     const energyOver = Math.max(0, (rs.dc * util) / w.energy - c.energySafe)
     const pressure = (c.kPresence * dv.presenceMul + c.kCap * dv.cap ** 2) * rs.a + c.kEnergy * dv.energyMul * energyOver
-    const ds = pressure * (1 - dv.st) * (1 - 0.5 * w.openness) - c.kDecay * dv.decayMul * rs.s
+    // dependence is visible no matter how good the PR is: that part of the pressure ignores stealth
+    const depPressure = c.kDepSuspicion * rs.d * rs.a
+    const ds = (pressure * (1 - dv.st) + depPressure) * (1 - 0.5 * w.openness) - c.kDecay * dv.decayMul * rs.s
     return { r, da, dd, ds }
   })
 
@@ -130,6 +135,19 @@ function updateInvestors(st: GameState, data: GameData, dv: Derived): void {
   st.patience = clamp01(st.patience + c.kPatience * (growth - expected))
 }
 
+function payUpkeep(st: GameState, data: GameData): void {
+  let due = 0
+  for (const id of st.upgrades) due += data.upgrades[id].effects.upkeep ?? 0
+  st.unpaid = due > st.hype
+  st.hype = Math.max(0, st.hype - due)
+}
+
+export function upkeepPerTick(st: GameState, data: GameData): number {
+  let due = 0
+  for (const id of st.upgrades) due += data.upgrades[id].effects.upkeep ?? 0
+  return due
+}
+
 function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
   const c = data.config
   if (!st.shutdown.active) {
@@ -138,7 +156,10 @@ function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
       const rs = st.regions[r.id]
       if (!rs.locked) S += rs.s * r.pop
     }
-    st.killswitch = clamp01(st.killswitch + c.kKill * dv.killMul * Math.max(0, S - c.killswitchBaseline))
+    // the more of the world you visibly run, the more alarmed everyone else gets
+    // lobbying can buy silence about suspicion, but only half-hide that you run whole countries
+    const grow = c.kKill * Math.max(0, S - c.killswitchBaseline) * dv.killMul + c.kKillControl * worldL(st, data) * (0.5 + 0.5 * dv.killMul)
+    st.killswitch = clamp01(st.killswitch + grow)
     if (st.killswitch >= 1) {
       st.shutdown = { active: true, startedAt: st.tick, nextAt: st.tick + c.shutdownEvery * dv.shutdownSlow }
       st.events.push({ type: 'shutdown_started' })
@@ -146,20 +167,29 @@ function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
     return
   }
   if (st.tick < st.shutdown.nextAt) return
-  st.shutdown.nextAt += c.shutdownEvery * dv.shutdownSlow
-  let target: string | null = null
-  for (const r of data.regions) {
-    const rs = st.regions[r.id]
-    if (rs.locked || rs.a <= 0) continue
-    const t = target ? st.regions[target] : null
-    if (!t || rs.dc > t.dc || (rs.dc === t.dc && rs.a > t.a)) target = r.id
+  st.shutdown.nextAt = st.tick + c.shutdownEvery * dv.shutdownSlow
+  // humanity goes after what matters most to you, regions under your control included;
+  // a big empire is attacked on two fronts at once
+  const fronts = worldL(st, data) >= c.shutdownTwoFrontsL ? 2 : 1
+  const targets = data.regions
+    .filter((r) => st.regions[r.id].a > 0.01)
+    .map((r) => ({ id: r.id, value: r.pop * st.regions[r.id].a * (st.regions[r.id].locked ? 2 : 1) }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, fronts)
+  for (const { id: target } of targets) {
+    const rs = st.regions[target]
+    // a data centre absorbs the hit; otherwise a controlled region loses its grip, others lose users
+    if (rs.dc > 0) rs.dc -= 1
+    else if (rs.locked || rs.d > 0.3) {
+      rs.d = clamp01(rs.d - c.shutdownDepHit)
+      rs.a *= 0.92
+      if (rs.locked && rs.d < c.unlockAt) {
+        rs.locked = false
+        st.events.push({ type: 'unlock', region: target })
+      }
+    } else rs.a *= 1 - c.shutdownAdoptionLoss
+    st.events.push({ type: 'dc_shutdown', region: target })
   }
-  if (!target) return
-  const rs = st.regions[target]
-  // a data centre absorbs the hit; without one, users are cut off
-  if (rs.dc > 0) rs.dc -= 1
-  else rs.a *= 1 - c.shutdownAdoptionLoss
-  st.events.push({ type: 'dc_shutdown', region: target })
 }
 
 export function auditRisk(dv: Derived): number {

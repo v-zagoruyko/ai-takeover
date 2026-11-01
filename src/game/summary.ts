@@ -79,6 +79,9 @@ export function recordEvents(st: GameStats, events: GameEvent[], state: GameStat
         st.locks++
         moment('target', `${region(e.region)} — под контролем`)
         break
+      case 'unlock':
+        moment('warn', `${region(e.region)} вышла из-под контроля`)
+        break
       case 'audit':
         if (e.passed) st.auditsPassed++
         else {

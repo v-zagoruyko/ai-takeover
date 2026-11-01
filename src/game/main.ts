@@ -169,6 +169,7 @@ function checkHints(v: View): void {
   if (Object.values(s.regions).some((r) => r.banned)) hint('ban')
   if (Object.values(s.regions).some((r) => r.locked)) hint('locked')
   if (s.killswitch > 0.25) hint('killswitch')
+  if (s.shutdown.active) hint('shutdown')
   if (!s.investorsDone && s.patience < 0.5) hint('patience')
 }
 

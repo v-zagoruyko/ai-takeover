@@ -39,6 +39,7 @@ export function createState(data: GameData, opts: NewGame): GameState {
     audit: { at: 0, warned: false },
     growth: [],
     prevProgress: 0,
+    unpaid: false,
     card: null,
     cardsSeen: [],
     cardRegions: {},

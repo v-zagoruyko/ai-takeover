@@ -84,5 +84,16 @@
   "trendSigma": 0.04,
   "trendTheta": 0.02,
   "trendMin": 0.6,
-  "trendMax": 1.4
+  "trendMax": 1.4,
+  "kDepSuspicion": 0.0012,
+  "kKillControl": 0.025,
+  "shutdownDepHit": 0.16,
+  "lateTick": 800,
+  "lateL": 0.15,
+  "lateK": 0.3,
+  "lateCardMul": 0.65,
+  "shutdownCardMin": 35,
+  "shutdownCardMax": 55,
+  "shutdownDepGrowth": 0.35,
+  "shutdownTwoFrontsL": 0.55
 }

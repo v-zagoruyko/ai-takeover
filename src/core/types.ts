@@ -32,6 +32,8 @@ export interface Effects {
   shutdownSlow?: number
   unlock?: Archetype[]
   axes?: Partial<Axes>
+  /** hype paid every tick while owned (stealth costs money to keep up) */
+  upkeep?: number
   /** multipliers */
   bubbleMul?: number
   killMul?: number
@@ -72,6 +74,14 @@ export interface CardEffect {
   killswitch?: number
   patience?: number
   axes?: Partial<Axes>
+  /** dependence change in every region you are present in */
+  dependence?: number
+  /** data centres added to (or lost in) the card's region */
+  regionDc?: number
+  /** shutdown phase: push the next wave back by this many ticks */
+  delayWave?: number
+  /** shutdown phase: end the shutdown this many ticks sooner (negative: later) */
+  shortenShutdown?: number
   /** if set, the effect applies with this probability, otherwise `fail` applies */
   chance?: number
   fail?: CardEffect
@@ -92,6 +102,12 @@ export interface Card {
     minS?: number
     minDc?: number
     needs?: string[]
+    /** late game only: tick, share under control or killswitch past the late thresholds */
+    late?: boolean
+    /** dealt only while shutdowns are under way (and only these then) */
+    shutdown?: boolean
+    /** card region must host a data centre */
+    regionHasDc?: boolean
     /** card is about a region: picked among regions with at least this adoption */
     regionMinA?: number
     regionArchetypes?: Archetype[]
@@ -173,6 +189,17 @@ export interface Config {
   trendTheta: number
   trendMin: number
   trendMax: number
+  kDepSuspicion: number
+  kKillControl: number
+  shutdownDepHit: number
+  shutdownDepGrowth: number
+  shutdownTwoFrontsL: number
+  lateTick: number
+  lateL: number
+  lateK: number
+  lateCardMul: number
+  shutdownCardMin: number
+  shutdownCardMax: number
   cardFirst: number
   cardMin: number
   cardMax: number
@@ -287,6 +314,8 @@ export interface GameState {
   audit: { at: number; warned: boolean }
   growth: number[]
   prevProgress: number
+  /** stealth upkeep could not be paid last tick: stealth works at half strength */
+  unpaid: boolean
   /** pending event card waiting for the player's choice */
   card: { id: string; region: string | null } | null
   cardsSeen: string[]

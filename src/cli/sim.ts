@@ -11,18 +11,20 @@ interface RunResult {
   aTo10: number | null
   aTo40: number | null
   firstLock: number | null
+  shutdownL: number | null
 }
 
 function runGame(data: GameData, bot: Bot, seed: number, startRegion: string, mask: string, trace: boolean): RunResult {
   let state = createState(data, { seed, startRegion, mask })
   const mem = { rng: (seed * 7919) >>> 0 }
-  const res: RunResult = { final: state, aTo10: null, aTo40: null, firstLock: null }
+  const res: RunResult = { final: state, aTo10: null, aTo40: null, firstLock: null, shutdownL: null }
   while (!state.outcome) {
     state = step(state, data, bot(state, data, mem))
     const A = worldA(state, data)
     if (res.aTo10 === null && A >= 0.1) res.aTo10 = state.tick
     if (res.aTo40 === null && A >= 0.4) res.aTo40 = state.tick
     if (res.firstLock === null && state.events.some((e) => e.type === 'lock')) res.firstLock = state.tick
+    if (state.events.some((e) => e.type === 'shutdown_started')) res.shutdownL = worldL(state, data)
     if (trace && (state.tick % 100 === 0 || state.outcome)) printTrace(state, data)
     if (trace) for (const e of state.events) console.log(`  t=${state.tick} ${JSON.stringify(e)}`)
   }
@@ -62,6 +64,12 @@ function summarize(name: string, results: RunResult[]): void {
   console.log(`  win ${pct(wins, n)}  | ${Object.entries(kinds).map(([k, v]) => `${k} ${pct(v, n)}`).join('  ')}`)
   if (wins) console.log(`  endings: ${Object.entries(endings).map(([k, v]) => `${k} ${v}`).join(', ')}`)
   console.log(`  game length: ${median(results.map((r) => r.final.tick))}`)
+  const sd = results.filter((r) => r.shutdownL !== null)
+  if (sd.length) {
+    const sdWins = sd.filter((r) => r.final.outcome!.kind.startsWith('win')).length
+    const avg = (xs: number[]) => (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(2)
+    console.log(`  shutdown reached ${pct(sd.length, n)}: L at start ${avg(sd.map((r) => r.shutdownL!))} → end ${avg(sd.map((r) => worldL(r.final, data)))}, survived ${pct(sdWins, sd.length)}`)
+  }
   console.log(`  A≥0.1 at ${median(results.map((r) => r.aTo10))}  A≥0.4 at ${median(results.map((r) => r.aTo40))}  first lock ${median(results.map((r) => r.firstLock))}`)
 }
 

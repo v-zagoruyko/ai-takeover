@@ -255,3 +255,42 @@ test('replay: a forged log cannot claim a different result', async () => {
   assert.ok(spent <= data.config.startHype, `bought ${spent} with ${data.config.startHype} hype`)
   assert.equal(honest.state.outcome!.kind, 'ai_winter')
 })
+
+test('stealth upkeep is paid every tick; unpaid stealth works at half strength', () => {
+  let s = newGame()
+  s.hype = 100
+  applyAction(s, data, { type: 'buy', upgrade: 'pr_safety' })
+  const full = derive(s, data).st
+  const before = s.hype
+  s = step(s, data, [])
+  assert.ok(s.hype < before + 1, 'upkeep should be charged')
+  assert.equal(s.unpaid, false)
+  s.hype = 0
+  s = step(s, data, [])
+  assert.equal(s.unpaid, true)
+  assert.ok(Math.abs(derive(s, data).st - full / 2) < 1e-9)
+})
+
+test('shutdown waves hit regions under control and can take them back', () => {
+  let s = newGame()
+  Object.assign(s.regions.north_america, { a: 0.9, d: 0.8, locked: true, dc: 0 })
+  s.killswitch = 1
+  s.shutdown = { active: true, startedAt: s.tick, nextAt: s.tick + 1 }
+  s = step(s, data, [])
+  assert.ok(s.regions.north_america.d < 0.8 - data.config.shutdownDepHit + 0.01, 'dependence should drop')
+  s.shutdown.nextAt = s.tick + 1
+  s = step(s, data, [])
+  assert.equal(s.regions.north_america.locked, false, 'two waves should break control')
+})
+
+test('cards: shutdown cards only during shutdowns, late cards only late', () => {
+  const s = newGame()
+  s.regions.north_america.a = 0.6
+  const shutdownCards = data.cards.filter((c) => c.when.shutdown)
+  const lateCards = data.cards.filter((c) => c.when.late)
+  assert.ok(shutdownCards.length > 0 && lateCards.length > 0)
+  let t = step({ ...s, nextCardAt: s.tick + 1 }, data, [])
+  for (let i = 0; i < 5 && !t.card; i++) t = step(t, data, [])
+  const dealt = data.cards.find((c) => c.id === t.card?.id)
+  assert.ok(dealt && !dealt.when.shutdown && !dealt.when.late, `early game dealt ${dealt?.id}`)
+})

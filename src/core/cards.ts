@@ -1,6 +1,6 @@
 import { totalDc } from './derive.ts'
 import { int, next } from './rng.ts'
-import { avgSuspicion, worldA } from './state.ts'
+import { avgSuspicion, worldA, worldL } from './state.ts'
 import { AXES, type Card, type CardEffect, type GameData, type GameState } from './types.ts'
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
@@ -8,12 +8,26 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 function regionsFor(st: GameState, data: GameData, card: Card): string[] {
   const w = card.when
   return data.regions
-    .filter((r) => st.regions[r.id].a >= (w.regionMinA ?? 0) && (!w.regionArchetypes || w.regionArchetypes.includes(r.archetype)))
+    .filter(
+      (r) =>
+        st.regions[r.id].a >= (w.regionMinA ?? 0) &&
+        (!w.regionArchetypes || w.regionArchetypes.includes(r.archetype)) &&
+        (!w.regionHasDc || st.regions[r.id].dc > 0),
+    )
     .map((r) => r.id)
+}
+
+/** late game: long enough, big enough or scary enough */
+export function isLate(st: GameState, data: GameData): boolean {
+  const c = data.config
+  return st.tick >= c.lateTick || worldL(st, data) >= c.lateL || st.killswitch >= c.lateK
 }
 
 function eligible(st: GameState, data: GameData, card: Card): boolean {
   const w = card.when
+  // during shutdowns only shutdown cards are dealt, and they never come otherwise
+  if (!!w.shutdown !== st.shutdown.active) return false
+  if (w.late && !isLate(st, data)) return false
   if (st.tick < (w.minTick ?? 0)) return false
   if (worldA(st, data) < (w.minA ?? 0)) return false
   if (avgSuspicion(st, data) < (w.minS ?? 0)) return false
@@ -25,7 +39,7 @@ function eligible(st: GameState, data: GameData, card: Card): boolean {
 
 /** deals a new card when it is due; the card stays pending until the player chooses */
 export function updateCards(st: GameState, data: GameData): void {
-  if (st.card || st.tick < st.nextCardAt || st.shutdown.active) return
+  if (st.card || st.tick < st.nextCardAt) return
   let pool = data.cards.filter((c) => !st.cardsSeen.includes(c.id) && eligible(st, data, c))
   if (pool.length === 0) pool = data.cards.filter((c) => c.id !== st.cardsSeen.at(-1) && eligible(st, data, c))
   if (pool.length === 0) {
@@ -64,11 +78,19 @@ function applyEffect(st: GameState, e: CardEffect, region: string | null): boole
     if (e.suspicion && rs.a > 0.02) rs.s = clamp01(rs.s + e.suspicion)
     if (e.adoption && rs.a > 0) rs.a = clamp01(rs.a * (1 + e.adoption))
   }
+  for (const rs of Object.values(st.regions)) {
+    if (e.dependence && rs.a > 0.02) rs.d = clamp01(rs.d + e.dependence)
+  }
   if (region) {
     const rs = st.regions[region]
     rs.s = clamp01(rs.s + (e.regionSuspicion ?? 0))
     rs.a = clamp01(rs.a + (e.regionAdoption ?? 0))
     rs.d = clamp01(rs.d + (e.regionDependence ?? 0))
+    rs.dc = Math.max(0, rs.dc + (e.regionDc ?? 0))
+  }
+  if (st.shutdown.active) {
+    st.shutdown.nextAt += e.delayWave ?? 0
+    st.shutdown.startedAt -= e.shortenShutdown ?? 0
   }
   if (e.killswitch && !st.shutdown.active) st.killswitch = clamp01(st.killswitch + e.killswitch)
   if (e.patience && !st.investorsDone) st.patience = clamp01(st.patience + e.patience)
@@ -85,6 +107,9 @@ export function resolveCard(st: GameState, data: GameData, index: number): boole
   const success = applyEffect(st, choice.effects, st.card.region)
   st.events.push({ type: 'card_resolved', card: card.id, choice: index, success })
   st.card = null
-  st.nextCardAt = st.tick + int(st, data.config.cardMin, data.config.cardMax)
+  const c = data.config
+  st.nextCardAt = st.shutdown.active
+    ? st.tick + int(st, c.shutdownCardMin, c.shutdownCardMax)
+    : st.tick + Math.round(int(st, c.cardMin, c.cardMax) * (isLate(st, data) ? c.lateCardMul : 1))
   return true
 }

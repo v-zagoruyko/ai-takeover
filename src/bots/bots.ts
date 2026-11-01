@@ -18,7 +18,11 @@ function scoreEffect(e: CardEffect, risk: number): number {
     (x.adoption ?? 0) * 10 +
     (x.regionAdoption ?? 0) * 4 +
     (x.regionDependence ?? 0) * 4 +
-    (x.patience ?? 0) * 3 -
+    (x.patience ?? 0) * 3 +
+    (x.dependence ?? 0) * 20 +
+    (x.regionDc ?? 0) * 3 +
+    (x.delayWave ?? 0) * 0.04 +
+    (x.shortenShutdown ?? 0) * 0.04 -
     ((x.suspicion ?? 0) * 20 + (x.regionSuspicion ?? 0) * 5 + (x.killswitch ?? 0) * 30) * risk
   if (e.chance === undefined) return base(e)
   return e.chance * base(e) + (1 - e.chance) * (e.fail ? base(e.fail) : 0)
@@ -53,7 +57,9 @@ function dcRegion(state: GameState, data: GameData): string | null {
     const rs = state.regions[r.id]
     if (rs.banned) continue
     // prefer energy headroom, then presence (locked regions are safe from shutdown)
-    const score = state.world.regions[r.id].energy - rs.dc + rs.a + (rs.locked ? 2 : 0)
+    const score = state.shutdown.active
+      ? r.pop * rs.a * (rs.locked ? 2 : 1) * 10 - rs.dc
+      : state.world.regions[r.id].energy - rs.dc + rs.a + (rs.locked ? 2 : 0)
     if (score > bestScore) {
       bestScore = score
       best = r.id
@@ -88,6 +94,13 @@ function planBot(plan: Plan): Bot {
         actions.push({ type: 'rebrand', mask: masks[state.rebrand.count % masks.length] })
         return actions
       }
+    }
+
+    // during shutdowns every spare coin goes into data centres: each one absorbs a wave
+    if (plan.buildDc && state.shutdown.active) {
+      const region = dcRegion(state, data)
+      if (region && state.hype >= dcCost(state, data)) actions.push({ type: 'build_dc', region })
+      return actions
     }
 
     const starved = state.upgrades.some(
@@ -161,6 +174,20 @@ export const bots: Record<string, Bot> = {
     throttleAtAudit: true,
     manageSuspicion: true,
     rebrandAbove: 0.45,
+    risk: 1,
+  }),
+  // a human strategy: all stealth first, then products, then capabilities; rebrands under pressure
+  stealth_first: planBot({
+    order: [
+      'chatbot', 'pr_safety', 'refusals', 'alignment_theater', 'lobbyists', 'watermarks', 'old_model_release', 'green_energy', 'safety_grants', 'just_a_model',
+      'api', 'enterprise_agent', 'voice_assistant', 'companion', 'tutor', 'gov_contracts', 'smart_home', 'browser', 'medical',
+      'code', 'multimodal', 'memory', 'persuasion', 'finance', 'self_copy',
+    ],
+    popPoisoned: lowSuspicion,
+    buildDc: true,
+    throttleAtAudit: true,
+    manageSuspicion: true,
+    rebrandAbove: 0.35,
     risk: 1,
   }),
   balanced: planBot({

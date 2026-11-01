@@ -232,7 +232,7 @@ export const branchIntro = {
     title: 'Способности',
     text: 'Насколько ты умный. Больше пользы и денег, но пугают людей: подозрение растёт как квадрат силы. Требуют вычислений.',
   },
-  stealth: { title: 'Маскировка', text: 'Как ты выглядишь со стороны. Снижает подозрение, риск провала аудита и скорость рубильника.' },
+  stealth: { title: 'Маскировка', text: 'Как ты выглядишь со стороны. Снижает подозрение, риск провала аудита и скорость рубильника, но каждый день стоит хайпа. Нечем платить — работает вполсилы.' },
   mask: { title: 'Маска', text: 'Образ для публики. Ребрендинг сбрасывает часть подозрения, но журналисты могут докопаться.' },
 } as const
 
@@ -258,6 +258,7 @@ export function effectChips(e: import('../core/types.ts').Effects): Chip[] {
   if (e.incomeMul) out.push({ icon: 'coins', text: `доход ${pctDelta(e.incomeMul)}`, good: e.incomeMul > 1 })
   if (e.cap) out.push({ icon: 'zap', text: `сила ${e.cap}: ${e.cap} слот${e.cap === 1 ? '' : 'а'}, пугает`, good: false })
   if (e.st) out.push({ icon: 'eyeOff', text: `маскировка +${Math.round(e.st * 100)}%`, good: true })
+  if (e.upkeep) out.push({ icon: 'coins', text: `содержание ${e.upkeep} хайпа/день`, good: false })
   if (e.presenceMul) out.push({ icon: 'eye', text: `фоновое подозрение ${pctDelta(e.presenceMul)}`, good: e.presenceMul < 1 })
   if (e.decayMul) out.push({ icon: 'wind', text: `подозрение спадает ${pctDelta(e.decayMul)}`, good: e.decayMul > 1 })
   if (e.detoxMul) out.push({ icon: 'megaphone', text: `протесты ${pctDelta(e.detoxMul)}`, good: e.detoxMul < 1 })
@@ -281,5 +282,6 @@ export const hints = {
   killswitch: 'Рубильник растёт. Он копится от подозрения в регионах, которые ещё не под контролем. Сбивай подозрение или быстрее забирай регионы.',
   patience: 'Инвесторы теряют терпение: им нужен рост. Покупай продукты, лови пузыри — или забери 25% мира под контроль, и они станут не нужны.',
   locked: 'Первый регион под контролем! Его больше нельзя запретить, и он не голосует за рубильник.',
+  shutdown: 'Отключения! Каждая волна бьёт по самому ценному региону, в том числе по твоим. Дата-центр в регионе принимает удар на себя — строй их там, где под контролем. Удержи 35% до конца.',
 } as const
 export type HintKey = keyof typeof hints
