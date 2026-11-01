@@ -158,7 +158,7 @@ function tip(o: Outcome, st: GameStats): string {
 
 const AXIS_NAMES = { control: 'Контроль', attachment: 'Привязанность', appetite: 'Аппетит', shadow: 'Тень' } as const
 
-export function renderSummary(state: GameState, data: GameData, st: GameStats, aiName: string, world: { title: string }[]): string {
+export function renderSummary(state: GameState, data: GameData, st: GameStats, aiName: string, world: { title: string }[], scoreHtml = ''): string {
   const o = state.outcome!
   const won = o.kind === 'win' || o.kind === 'win_last_breath'
   const t = endingText[o.ending]
@@ -185,6 +185,7 @@ export function renderSummary(state: GameState, data: GameData, st: GameStats, a
     <small>${kind} · день ${o.tick} · ${aiName}</small>
     <h1>${t.title}</h1><p class="ending">${t.text}</p>
     <div class="tiles">${tiles}</div>
+    ${scoreHtml ? `<h3>Очки и рейтинг</h3>${scoreHtml}` : ''}
     <h3>Ход партии</h3>${chart(st.series, data.config.winL)}
     <div class="cols">
       <div><h3>Ключевые моменты</h3>${moments}</div>

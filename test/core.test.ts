@@ -212,3 +212,46 @@ test('world: trends drift but stay within bounds', () => {
   assert.ok(trends.some((t) => Math.abs(t - 1) > 0.02), 'trends should move')
   for (const t of trends) assert.ok(t >= data.config.trendMin && t <= data.config.trendMax)
 })
+
+test('replay: a logged game replays to exactly the same final state and score', async () => {
+  const { replay, scoreGame, trackPeaks } = await import('../src/core/replay.ts')
+  for (const seed of [3, 17]) {
+    // play the way the browser does: actions between ticks, step without actions
+    const rec = { seed, startRegion: 'north_america', mask: 'assistant', log: [] as { t: number; a: Action }[] }
+    let s = createState(data, rec)
+    const peaks = { peakA: 0, peakS: 0 }
+    trackPeaks(peaks, s, data)
+    const mem = { rng: seed }
+    while (!s.outcome) {
+      for (const a of bots.balanced(s, data, mem)) {
+        const next = structuredClone(s)
+        if (applyAction(next, data, a)) {
+          rec.log.push({ t: s.tick, a })
+          s = next
+        }
+      }
+      s = step(s, data, [])
+      trackPeaks(peaks, s, data)
+    }
+    const r = replay(data, rec)
+    assert.deepEqual(r.state, s)
+    assert.equal(r.peakA, peaks.peakA)
+    assert.equal(scoreGame(r, data).total, scoreGame({ state: s, ...peaks }, data).total)
+    assert.ok(scoreGame(r, data).total > 0)
+  }
+})
+
+test('replay: a forged log cannot claim a different result', async () => {
+  const { replay } = await import('../src/core/replay.ts')
+  const honest = replay(data, { seed: 5, startRegion: 'north_america', mask: 'assistant', log: [] })
+  // buying things without the money is ignored, so the outcome stays the honest one
+  const forged = replay(data, {
+    seed: 5,
+    startRegion: 'north_america',
+    mask: 'assistant',
+    log: Object.keys(data.upgrades).map((u) => ({ t: 1, a: { type: 'buy' as const, upgrade: u } })),
+  })
+  const spent = forged.state.upgrades.reduce((sum, u) => sum + data.upgrades[u].cost, 0)
+  assert.ok(spent <= data.config.startHype, `bought ${spent} with ${data.config.startHype} hype`)
+  assert.equal(honest.state.outcome!.kind, 'ai_winter')
+})

@@ -4,10 +4,12 @@ import { loadData } from '../core/data.ts'
 import { derive } from '../core/derive.ts'
 import { createState, worldA } from '../core/state.ts'
 import { step } from '../core/step.ts'
+import { scoreGame, type GameRecord, type LoggedAction } from '../core/replay.ts'
 import type { Action, GameEvent, GameState } from '../core/types.ts'
 import { MapScene, type SceneHost } from './MapScene.ts'
 import { icon } from './icons.ts'
 import { renderSideList, renderSideTop, renderTop, type Tab, type View } from './panels.ts'
+import { fetchTop, rememberPlayer, renderSubmitForm, renderTable, submit } from './leaderboard.ts'
 import { newStats, recordBubble, recordEvents, recordTick, renderSummary, summaryText } from './summary.ts'
 import { ambientNews, describeEffect, fillCard, hints, maskText, newsFor, regionNames, tips, type HintKey } from './text.ts'
 
@@ -36,6 +38,8 @@ let acc = 0
 let tab: Tab = 'products'
 let worldIntro = false
 let stats = newStats()
+// seed, start and every action with its tick: enough for the server to replay and verify the game
+let record: GameRecord = { seed: 0, startRegion: '', mask: '', log: [] }
 // clicks on a modal that just appeared are ignored: players are often mid-click on map bubbles
 const ARM_MS = 900
 let armedAt = 0
@@ -235,6 +239,7 @@ function act(action: Action): boolean {
   const next = structuredClone(state)
   next.events = []
   if (!applyAction(next, data, action)) return false
+  record.log.push({ t: state.tick, a: action } satisfies LoggedAction)
   const sound = ({ buy: 'buy', throttle: 'throttle', unthrottle: 'unthrottle', build_dc: 'build_dc', choose: 'choose' } as const)[action.type as string]
   if (sound) scene.sfx(sound)
   state = next
@@ -296,7 +301,8 @@ function showStart(): void {
     <label>Как тебя зовут <input id="ai-name" value="Помощник" maxlength="24"></label>
     <div class="masks-pick">${masks}</div>
     <label>Где стартуем <select id="start-region">${regions}</select></label>
-    <button id="start">Запустить</button></div>`
+    <button id="start">Запустить</button>
+    <button id="show-lb" class="secondary">${icon('trend')}Рейтинг игроков</button></div>`
   overlay.hidden = false
 }
 
@@ -304,7 +310,9 @@ function startGame(): void {
   const name = ($('ai-name') as HTMLInputElement).value.trim() || 'Помощник'
   const mask = (document.querySelector('input[name="mask"]:checked') as HTMLInputElement).value
   const startRegion = ($('start-region') as HTMLSelectElement).value
-  state = createState(data, { seed: Math.floor(Math.random() * 2 ** 31), startRegion, mask })
+  const seed = Math.floor(Math.random() * 2 ** 31)
+  state = createState(data, { seed, startRegion, mask })
+  record = { seed, startRegion, mask, log: [] }
   aiName = name
   oldName = name
   news = []
@@ -324,10 +332,55 @@ function startGame(): void {
 }
 
 function showGameOver(): void {
-  overlay.innerHTML = renderSummary(state!, data, stats, aiName, worldModifiers())
+  const score = scoreGame({ state: state!, peakA: stats.peakA, peakS: stats.peakS }, data)
+  overlay.innerHTML = renderSummary(state!, data, stats, aiName, worldModifiers(), renderSubmitForm(score))
   overlay.hidden = false
   overlay.scrollTop = 0
+  void loadTable(10)
 }
+
+async function loadTable(limit: number, highlight?: { name: string; score: number }): Promise<void> {
+  const box = document.getElementById('lb-table')
+  if (!box) return
+  try {
+    box.innerHTML = renderTable(await fetchTop(limit), highlight)
+  } catch {
+    box.innerHTML = '<p class="hint">Рейтинг сейчас недоступен.</p>'
+  }
+}
+
+function showLeaderboard(): void {
+  overlay.innerHTML = `<div class="card summary"><h1>Рейтинг</h1>
+    <p class="hint">Каждый результат сервер проверяет, переигрывая партию по журналу действий.</p>
+    <div id="lb-table"><p class="hint">Загружаем…</p></div>
+    <div class="actions"><button id="back-start">Назад</button></div></div>`
+  overlay.hidden = false
+  void loadTable(50)
+}
+
+document.addEventListener('submit', (e) => {
+  const form = e.target as HTMLFormElement
+  if (form.id !== 'lb-form' || !state?.outcome) return
+  e.preventDefault()
+  const input = form.querySelector('input') as HTMLInputElement
+  const status = document.getElementById('lb-status')!
+  const name = input.value.trim()
+  if (!name) return
+  rememberPlayer(name)
+  form.querySelectorAll('input, button').forEach((el) => ((el as HTMLInputElement).disabled = true))
+  status.textContent = 'Сервер переигрывает твою партию…'
+  const o = state.outcome
+  submit(record, name, aiName, { kind: o.kind, tick: o.tick })
+    .then((r) => {
+      status.textContent = r.duplicate ? `Эта партия уже в рейтинге: ${r.rank}-е место.` : `Готово! Ты на ${r.rank}-м месте.`
+      scene.sfx('success')
+      void loadTable(10, { name, score: r.score.total })
+    })
+    .catch((err: Error) => {
+      status.textContent = err.message
+      form.querySelectorAll('input, button').forEach((el) => ((el as HTMLInputElement).disabled = false))
+    })
+})
 
 document.addEventListener('click', (e) => {
   const t = e.target as Element
@@ -397,7 +450,8 @@ document.addEventListener('click', (e) => {
     return render()
   }
   if (t.id === 'start') return startGame()
-  if (t.id === 'restart') return showStart()
+  if (t.id === 'restart' || t.id === 'back-start') return showStart()
+  if (t.closest('#show-lb')) return showLeaderboard()
 })
 
 document.addEventListener('keydown', (e) => {

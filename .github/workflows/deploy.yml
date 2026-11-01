@@ -19,6 +19,7 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.meta.outputs.image }}
+      api_image: ${{ steps.meta.outputs.api_image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +36,9 @@ jobs:
 
       - name: Image name
         id: meta
-        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "api_image=ghcr.io/${GITHUB_REPOSITORY,,}-api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -52,6 +55,15 @@ jobs:
           tags: ${{ steps.meta.outputs.image }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.api
+          push: true
+          tags: ${{ steps.meta.outputs.api_image }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
 
   deploy:
     needs: build
@@ -76,10 +88,11 @@ jobs:
         env:
           HOST: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           IMAGE: ${{ needs.build.outputs.image }}
+          API_IMAGE: ${{ needs.build.outputs.api_image }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ssh "$HOST" "mkdir -p $APP_DIR"
           scp docker-compose.yml "$HOST:$APP_DIR/docker-compose.yml"
           echo "$GHCR_TOKEN" | ssh "$HOST" "docker login ghcr.io -u $GHCR_USER --password-stdin"
-          ssh "$HOST" "cd $APP_DIR && echo IMAGE=$IMAGE > .env && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f"
+          ssh "$HOST" "cd $APP_DIR && printf 'IMAGE=%s\nAPI_IMAGE=%s\n' $IMAGE $API_IMAGE > .env && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f"

@@ -228,3 +228,26 @@ body.glitch #game { animation: glitch .45s steps(6) 1; }
   background: linear-gradient(transparent, #131721 18%); }
 .summary .actions button { padding: 12px; font-weight: 800; font-size: 15px; }
 .summary .actions #restart { background: #2ed6c4; color: #0b0e14; border: 0; }
+
+/* ---------- score and leaderboard ---------- */
+.card > button.secondary { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; background: #232835; color: #d8dce6; border: 1px solid #353c4d; font-size: 14px; }
+.score-box { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: center; padding: 12px; border-radius: 10px; background: rgba(46, 214, 196, .06); border: 1px solid rgba(46, 214, 196, .2); }
+.score-total { display: flex; align-items: baseline; gap: 6px; grid-row: span 2; }
+.score-total .i { color: #2ed6c4; align-self: center; }
+.score-total b { font-size: 34px; color: #2ed6c4; font-variant-numeric: tabular-nums; }
+.score-total small { color: #8a93a8; }
+.score-parts { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: #a9b0c2; }
+.score-parts b { color: #e8ecf4; }
+.lb-form { display: flex; gap: 6px; }
+.lb-form input { flex: 1; margin: 0 !important; }
+.lb-form button { background: #2ed6c4; color: #0b0e14; border: 0; font-weight: 700; padding: 6px 14px; }
+#lb-status { grid-column: 1 / -1; margin: 0; }
+#lb-status:empty { display: none; }
+.lb { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
+.lb th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8a93a8; font-weight: 600; padding: 4px 8px; }
+.lb td { padding: 6px 8px; border-top: 1px solid rgba(255,255,255,.06); vertical-align: top; }
+.lb td small { display: block; color: #8a93a8; font-size: 11px; }
+.lb .rank { color: #8a93a8; width: 28px; font-variant-numeric: tabular-nums; }
+.lb .pts { text-align: right; font-weight: 800; color: #2ed6c4; font-variant-numeric: tabular-nums; }
+.lb .won { color: #ffd166; } .lb .lost { color: #ff8a9a; }
+.lb tr.me td { background: rgba(255, 209, 102, .1); }

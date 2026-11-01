@@ -1,0 +1,12 @@
+# Leaderboard API: plain Node 24 (type stripping, node:sqlite), no npm dependencies
+FROM node:24-alpine
+WORKDIR /app
+COPY package.json ./
+COPY src/core src/core
+COPY data data
+COPY server server
+ENV DB_PATH=/data/leaderboard.db PORT=8787
+RUN mkdir -p /data && chown node:node /data
+USER node
+EXPOSE 8787
+CMD ["node", "server/main.ts"]

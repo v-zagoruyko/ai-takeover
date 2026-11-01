@@ -14,6 +14,8 @@
 - `public/sfx/`: звуки эффектов (MP3, моно, громкость выровнена `loudnorm`), ключи и громкость в `SFX` / `SFX_VOLUME` в `MapScene.ts`. Источник: паки Kenney Interface Sounds, Sci-fi Sounds (CC0) и Digital SFX (свободно, атрибуция не обязательна), скачаны с OpenGameArt (kenney.nl блокирует автоматические запросы). Лицензия в `public/sfx/LICENSE-kenney.txt`.
 - `public/cards/<id>.jpg`: сатирические иллюстрации к карточкам-событиям (генерация `genimg`, стиль, промпты и кадрирование — `docs/card-art.md`). Новая карточка без картинки работает, картинка просто не показывается.
 - `data/map.json`: контуры стран, сгруппированные в регионы игры, в проекции Natural Earth. Генерируется `scripts/build-map.mjs` из Natural Earth 110m (команда в шапке скрипта); правка группировки стран — там же.
+- `src/core/replay.ts`: переигровка партии по сиду и журналу действий (`{t, a}` — действие и такт, на котором оно сделано, между шагами) и подсчёт очков `scoreGame`. Общий код для клиента (показать очки) и сервера (проверить результат). Клиент пишет журнал в `act()` контроллера.
+- `server/`: API рейтинга на голом Node 24 (`node:http`, встроенный `node:sqlite`, без npm-зависимостей). `scores.ts` — валидация и проверка переигровкой (409, если итог не воспроизводится: подделка или старая версия клиента), `main.ts` — HTTP (`POST /api/scores`, `GET /api/leaderboard`, `GET /api/health`), SQLite, дедупликация по хешу журнала, лимит 8 отправок с IP за 10 минут. Клиентская часть — `src/game/leaderboard.ts`.
 - `src/bots/bots.ts`: стратегии для прогонов; у ботов свой rng, игровой поток случайностей они не трогают.
 - Node 24 исполняет `.ts` напрямую (type stripping): только стираемый синтаксис (без `enum`, `namespace`, parameter properties), импорты с расширением `.ts`.
 
@@ -21,11 +23,12 @@
 - Тесты: `npm test` (встроенный `node --test`).
 - Баланс: `npm run sim -- --seeds 100` (все боты), трасса одной партии `npm run sim -- --bot balanced --trace --seed 3`.
 - Typecheck: `npm run typecheck`.
+- API рейтинга локально: `npm run api` (порт 8787, база `leaderboard.db` в корне, в git не идёт; `DB_PATH` переопределяет); Vite проксирует на него `/api` (`vite.config.ts`).
 - Клиент: `npm run dev` → http://127.0.0.1:5173 (Vite; сохранение файла перезагружает страницу и сбрасывает партию). Сборка `npm run build` в `dist/`. Пробел — пауза, 1/2/3 — скорость, M — звук, колесо — зум, перетаскивание — сдвиг карты.
 
 ## Деплой
-- https://ai-takeover.zagoruykov.site (www редиректит на основной адрес). Личный VPS по схеме пет-проектов (skill `deploy-pet`): статика Vite в `nginx:alpine` (`Dockerfile`, `nginx.conf` с gzip), Traefik по labels в `docker-compose.yml`, на сервере `/opt/apps/ai-takeover`.
-- CI: `.github/workflows/deploy.yml` по push в `main` — typecheck и тесты, сборка образа в GHCR, деплой по SSH (org-секреты `v-zagoruyko`).
+- https://ai-takeover.zagoruykov.site (www редиректит на основной адрес). Личный VPS по схеме пет-проектов (skill `deploy-pet`): статика Vite в `nginx:alpine` (`Dockerfile`, `nginx.conf` с gzip) и API рейтинга (`Dockerfile.api`, Traefik отдаёт ему `/api`, база SQLite на volume `leaderboard`), labels в `docker-compose.yml`, на сервере `/opt/apps/ai-takeover`.
+- CI: `.github/workflows/deploy.yml` по push в `main` — typecheck и тесты, сборка двух образов в GHCR (`ai-takeover` и `ai-takeover-api`, в `.env` на сервере `IMAGE` и `API_IMAGE`), деплой по SSH (org-секреты `v-zagoruyko`).
 - Репозиторий публичный; страница помечена `noindex`.
 
 ## Правила

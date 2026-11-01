@@ -18,6 +18,24 @@ services:
       - traefik.http.middlewares.ai-takeover-www-redirect.redirectregex.replacement=https://$${1}
       - traefik.http.middlewares.ai-takeover-www-redirect.redirectregex.permanent=true
 
+  api:
+    image: ${API_IMAGE}
+    restart: unless-stopped
+    mem_limit: 96m
+    networks: [proxy]
+    volumes:
+      - leaderboard:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ai-takeover-api.rule=Host(`ai-takeover.zagoruykov.site`) && PathPrefix(`/api`)
+      - traefik.http.routers.ai-takeover-api.entrypoints=websecure
+      - traefik.http.routers.ai-takeover-api.tls.certresolver=le
+      - traefik.http.routers.ai-takeover-api.priority=100
+      - traefik.http.services.ai-takeover-api.loadbalancer.server.port=8787
+
+volumes:
+  leaderboard:
+
 networks:
   proxy:
     external: true
