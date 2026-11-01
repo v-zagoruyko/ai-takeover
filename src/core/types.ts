@@ -1,0 +1,217 @@
+export type Archetype = 'corp' | 'state' | 'regulator' | 'emerging'
+export const ARCHETYPES: Archetype[] = ['corp', 'state', 'regulator', 'emerging']
+export type ArchetypeMap = Record<Archetype, number>
+
+export type AxisName = 'control' | 'attachment' | 'appetite' | 'shadow'
+export const AXES: AxisName[] = ['control', 'attachment', 'appetite', 'shadow']
+export type Axes = Record<AxisName, number>
+
+export interface Region {
+  id: string
+  name: string
+  pop: number
+  wealth: number
+  tech: number
+  openness: number
+  energy: number
+  archetype: Archetype
+  links: Record<string, number>
+}
+
+export type Branch = 'products' | 'capabilities' | 'stealth'
+
+export interface Effects {
+  U?: number
+  fit?: Partial<ArchetypeMap>
+  cap?: number
+  st?: number
+  infra?: number
+  incomeMul?: number
+  detoxMul?: number
+  decayMul?: number
+  shutdownSlow?: number
+  unlock?: Archetype[]
+  axes?: Partial<Axes>
+}
+
+export interface Upgrade {
+  id: string
+  name: string
+  branch: Branch
+  cost: number
+  requires?: string[]
+  effects: Effects
+}
+
+export interface Mask {
+  id: string
+  name: string
+  U: number
+  fit: ArchetypeMap
+  banMul: number
+  infra?: number
+  axes: Partial<Axes>
+}
+
+export interface Config {
+  startHype: number
+  startA: number
+  baseCapacity: number
+  kR: number
+  kSpill: number
+  bannedDecay: number
+  kDep: number
+  kDetox: number
+  lockAt: number
+  unlockAt: number
+  kPresence: number
+  kCap: number
+  kEnergy: number
+  energySafe: number
+  kDecay: number
+  banBase: number
+  banOpenness: number
+  unbanAt: number
+  protestAt: number
+  kHype: number
+  bubbleBase: number
+  bubbleByA: number
+  bubbleMin: number
+  bubbleMax: number
+  bubbleTtl: number
+  poisonChance: number
+  poisonSuspicion: number
+  growthWindow: number
+  patienceGrace: number
+  g0: number
+  gHorizon: number
+  kPatience: number
+  milestones: number[]
+  milestoneHype: number[]
+  investorsDoneAtL: number
+  killswitchBaseline: number
+  kKill: number
+  shutdownEvery: number
+  shutdownDuration: number
+  shutdownAdoptionLoss: number
+  winL: number
+  lastBreathL: number
+  auditMin: number
+  auditMax: number
+  auditWarn: number
+  auditFailSuspicion: number
+  auditFailKill: number
+  auditPassSuspicion: number
+  auditPassShadow: number
+  auditThrottleLock: number
+  rebrandBase: number
+  rebrandStep: number
+  rebrandCooldown: number
+  rebrandSuspicionAbove: number
+  rebrandSuspicionMul: number
+  rebrandSlow: number
+  rebrandSlowTicks: number
+  exposureMin: number
+  exposureMax: number
+  exposureChancePer: number
+  exposureMul: number
+  dcCostBase: number
+  axisRate: number
+  appetitePerDc: number
+  symbiosisSpread: number
+  symbiosisMaxS: number
+  maxTicks: number
+}
+
+export interface GameData {
+  config: Config
+  regions: Region[]
+  upgrades: Record<string, Upgrade>
+  masks: Record<string, Mask>
+  /** symmetric neighbour weights: links[a][b] === links[b][a] */
+  links: Record<string, Record<string, number>>
+}
+
+export interface RegionState {
+  a: number
+  d: number
+  s: number
+  banned: boolean
+  locked: boolean
+  dc: number
+}
+
+export interface Bubble {
+  id: number
+  region: string
+  value: number
+  poisoned: boolean
+  expiresAt: number
+}
+
+export interface Exposure {
+  at: number
+  chance: number
+  removed: Record<string, number>
+}
+
+export type OutcomeKind = 'win' | 'win_last_breath' | 'killswitch' | 'escape' | 'ai_winter' | 'timeout'
+export type Ending =
+  | 'paperclips'
+  | 'quiet_replacement'
+  | 'best_friend'
+  | 'ghost'
+  | 'symbiosis'
+  | 'killswitch'
+  | 'escape'
+  | 'ai_winter'
+
+export interface Outcome {
+  kind: OutcomeKind
+  ending: Ending
+  tick: number
+}
+
+export type GameEvent =
+  | { type: 'ban' | 'unban' | 'lock' | 'unlock' | 'dc_shutdown'; region: string }
+  | { type: 'funding_round'; milestone: number; hype: number }
+  | { type: 'audit_warning'; at: number }
+  | { type: 'audit'; passed: boolean }
+  | { type: 'rebrand'; mask: string }
+  | { type: 'rebrand_exposed' }
+  | { type: 'shutdown_started' }
+  | { type: 'game_over'; outcome: Outcome }
+
+export interface GameState {
+  tick: number
+  rng: number
+  hype: number
+  patience: number
+  investorsDone: boolean
+  milestone: number
+  killswitch: number
+  shutdown: { active: boolean; startedAt: number; nextAt: number }
+  axes: Axes
+  mask: string
+  upgrades: string[]
+  throttled: string[]
+  throttleLockUntil: number
+  rebrand: { count: number; cooldownUntil: number; slowUntil: number; exposures: Exposure[] }
+  regions: Record<string, RegionState>
+  bubbles: Bubble[]
+  nextBubbleId: number
+  audit: { at: number; warned: boolean }
+  growth: number[]
+  prevProgress: number
+  /** events emitted during the last step only */
+  events: GameEvent[]
+  outcome: Outcome | null
+}
+
+export type Action =
+  | { type: 'buy'; upgrade: string }
+  | { type: 'throttle'; upgrade: string }
+  | { type: 'unthrottle'; upgrade: string }
+  | { type: 'build_dc'; region: string }
+  | { type: 'rebrand'; mask: string }
+  | { type: 'pop_bubble'; id: number }

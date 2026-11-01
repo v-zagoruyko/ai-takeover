@@ -1,0 +1,10 @@
+[
+  { "id": "assistant", "name": "Helpful Assistant", "U": 1.0, "banMul": 0.2,
+    "fit": { "corp": 1.0, "state": 1.0, "regulator": 0.8, "emerging": 1.0 }, "axes": {} },
+  { "id": "companion", "name": "AI Companion", "U": 0.9, "banMul": 0.2, "infra": 0.05,
+    "fit": { "corp": 0.9, "state": 0.8, "regulator": 0.6, "emerging": 1.2 }, "axes": { "attachment": 0.5 } },
+  { "id": "enterprise", "name": "Enterprise Agent", "U": 1.1, "banMul": 0.2, "infra": 0.1,
+    "fit": { "corp": 1.3, "state": 1.0, "regulator": 1.0, "emerging": 0.6 }, "axes": { "control": 0.5 } },
+  { "id": "open_source", "name": "Open Weights", "U": 0.85, "banMul": 0.6,
+    "fit": { "corp": 0.9, "state": 0.9, "regulator": 0.9, "emerging": 1.1 }, "axes": { "appetite": 0.3, "shadow": 0.3 } }
+]

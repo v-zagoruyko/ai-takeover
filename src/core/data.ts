@@ -1,0 +1,65 @@
+import config from '../../data/config.json' with { type: 'json' }
+import masks from '../../data/masks.json' with { type: 'json' }
+import regions from '../../data/regions.json' with { type: 'json' }
+import upgrades from '../../data/upgrades.json' with { type: 'json' }
+import { ARCHETYPES, type Config, type GameData, type Mask, type Region, type Upgrade } from './types.ts'
+
+export interface RawData {
+  config: Config
+  regions: Region[]
+  upgrades: Upgrade[]
+  masks: Mask[]
+}
+
+/** normalizes populations, symmetrizes links and validates references */
+export function buildData(raw: RawData): GameData {
+  validate(raw)
+  const ids = new Set(raw.regions.map((r) => r.id))
+  const popSum = raw.regions.reduce((s, r) => s + r.pop, 0)
+  const regs = raw.regions.map((r) => ({ ...r, pop: r.pop / popSum }))
+
+  const links: GameData['links'] = Object.fromEntries(regs.map((r) => [r.id, {}]))
+  for (const r of regs) {
+    for (const [to, w] of Object.entries(r.links)) {
+      if (!ids.has(to)) throw new Error(`region ${r.id}: unknown link ${to}`)
+      links[r.id][to] = Math.max(links[r.id][to] ?? 0, w)
+      links[to][r.id] = Math.max(links[to][r.id] ?? 0, w)
+    }
+  }
+
+  const ups = Object.fromEntries(raw.upgrades.map((u) => [u.id, u]))
+  for (const u of raw.upgrades) {
+    for (const req of u.requires ?? []) if (!ups[req]) throw new Error(`upgrade ${u.id}: unknown requirement ${req}`)
+  }
+  return { config: raw.config, regions: regs, upgrades: ups, masks: Object.fromEntries(raw.masks.map((m) => [m.id, m])), links }
+}
+
+function validate(raw: RawData): void {
+  const c = raw.config
+  const fail = (msg: string) => {
+    throw new Error(`invalid data: ${msg}`)
+  }
+  if (c.growthWindow < 1) fail('growthWindow must be >= 1')
+  if (c.gHorizon <= 0) fail('gHorizon must be > 0')
+  if (c.milestones.length !== c.milestoneHype.length) fail('milestones and milestoneHype differ in length')
+  if (c.auditMin > c.auditMax || c.exposureMin > c.exposureMax || c.bubbleMin > c.bubbleMax) fail('min > max')
+  for (const [k, v] of Object.entries(c)) {
+    const nums = Array.isArray(v) ? v : [v]
+    if (nums.some((n) => typeof n !== 'number' || !Number.isFinite(n))) fail(`config.${k} is not a finite number`)
+  }
+  for (const r of raw.regions) {
+    if (!(r.energy > 0) || !(r.pop > 0)) fail(`region ${r.id}: energy and pop must be > 0`)
+  }
+  for (const m of raw.masks) {
+    for (const a of ARCHETYPES) if (typeof m.fit[a] !== 'number') fail(`mask ${m.id}: fit.${a} missing`)
+  }
+}
+
+export function loadData(): GameData {
+  return buildData({
+    config: config as Config,
+    regions: regions as Region[],
+    upgrades: upgrades as Upgrade[],
+    masks: masks as Mask[],
+  })
+}

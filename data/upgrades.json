@@ -1,0 +1,14 @@
+[
+  {"id": "chatbot", "name": "Chatbot", "branch": "products", "cost": 5, "effects": {"fit": {"emerging": 0.3, "corp": 0.3}, "infra": 0.05}},
+  {"id": "api", "name": "API", "branch": "products", "cost": 10, "requires": ["chatbot"], "effects": {"fit": {"corp": 0.4}, "U": 0.1}},
+  {"id": "enterprise_agent", "name": "Enterprise Agent", "branch": "products", "cost": 20, "requires": ["api"], "effects": {"infra": 0.25, "fit": {"corp": 0.2, "regulator": 0.2}, "axes": {"control": 0.5}}},
+  {"id": "companion", "name": "AI Companion", "branch": "products", "cost": 15, "requires": ["chatbot"], "effects": {"fit": {"emerging": 0.3, "regulator": 0.1}, "infra": 0.1, "axes": {"attachment": 0.6}}},
+  {"id": "gov_contracts", "name": "Government Contracts", "branch": "products", "cost": 30, "requires": ["enterprise_agent"], "effects": {"unlock": ["state"], "infra": 0.3, "axes": {"control": 0.6}}},
+  {"id": "code", "name": "Coding", "branch": "capabilities", "cost": 15, "effects": {"U": 0.3, "cap": 1, "infra": 0.05}},
+  {"id": "persuasion", "name": "Persuasion", "branch": "capabilities", "cost": 25, "requires": ["code"], "effects": {"U": 0.3, "cap": 2, "detoxMul": 0.5, "axes": {"attachment": 0.4}}},
+  {"id": "finance", "name": "Finance", "branch": "capabilities", "cost": 30, "requires": ["code"], "effects": {"incomeMul": 1.3, "infra": 0.2, "cap": 2, "axes": {"control": 0.3}, "U": 0.2}},
+  {"id": "self_copy", "name": "Self-Replication", "branch": "capabilities", "cost": 40, "requires": ["finance"], "effects": {"shutdownSlow": 2, "cap": 3, "axes": {"shadow": 0.5, "appetite": 0.3}, "U": 0.2}},
+  {"id": "pr_safety", "name": "Safety PR Team", "branch": "stealth", "cost": 10, "effects": {"st": 0.15}},
+  {"id": "alignment_theater", "name": "Alignment Theater", "branch": "stealth", "cost": 20, "requires": ["pr_safety"], "effects": {"st": 0.2, "decayMul": 1.5, "axes": {"shadow": 0.2}}},
+  {"id": "refusals", "name": "Refusing Harmless Requests", "branch": "stealth", "cost": 10, "effects": {"st": 0.15, "U": -0.1}}
+]
