@@ -194,6 +194,8 @@ export interface Config {
   shutdownDepHit: number
   shutdownDepGrowth: number
   shutdownTwoFrontsL: number
+  shutdownHitFromL: number
+  shutdownHitPerL: number
   lateTick: number
   lateL: number
   lateK: number

@@ -51,6 +51,11 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
   const c = data.config
   const slow = st.tick < st.rebrand.slowUntil ? c.rebrandSlow : 1
   const util = dv.capacity > 0 ? dv.computeUsed / dv.capacity : 0
+  // once shutdowns start, people learn to live without you: dependence grows much slower,
+  // and the closer you are to running the world, the harder they resist (no free finish during the shutdown)
+  const depGrowth = st.shutdown.active
+    ? c.shutdownDepGrowth * clamp01((c.winL - worldL(st, data)) / (c.winL - c.lastBreathL))
+    : 1
 
   // compute all deltas from the same snapshot, then apply
   const deltas = data.regions.map((r) => {
@@ -66,8 +71,6 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
       if (rs.banned) da -= c.bannedDecay * rs.a
     }
     const protest = Math.max(0, rs.s - c.protestAt)
-    // once shutdowns start, people learn to live without you: dependence grows much slower
-    const depGrowth = st.shutdown.active ? c.shutdownDepGrowth : 1
     const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul * depGrowth - c.kDetox * dv.detoxMul * protest * rs.d
     const energyOver = Math.max(0, (rs.dc * util) / w.energy - c.energySafe)
     const pressure = (c.kPresence * dv.presenceMul + c.kCap * dv.cap ** 2) * rs.a + c.kEnergy * dv.energyMul * energyOver
@@ -170,7 +173,10 @@ function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
   st.shutdown.nextAt = st.tick + c.shutdownEvery * dv.shutdownSlow
   // humanity goes after what matters most to you, regions under your control included;
   // a big empire is attacked on two fronts at once
-  const fronts = worldL(st, data) >= c.shutdownTwoFrontsL ? 2 : 1
+  const L = worldL(st, data)
+  const fronts = L >= c.shutdownTwoFrontsL ? 2 : 1
+  // a big empire is hit harder: each wave tears away more dependence
+  const depHit = c.shutdownDepHit * (1 + c.shutdownHitPerL * Math.max(0, L - c.shutdownHitFromL))
   const targets = data.regions
     .filter((r) => st.regions[r.id].a > 0.01)
     .map((r) => ({ id: r.id, value: r.pop * st.regions[r.id].a * (st.regions[r.id].locked ? 2 : 1) }))
@@ -181,7 +187,7 @@ function updateKillswitch(st: GameState, data: GameData, dv: Derived): void {
     // a data centre absorbs the hit; otherwise a controlled region loses its grip, others lose users
     if (rs.dc > 0) rs.dc -= 1
     else if (rs.locked || rs.d > 0.3) {
-      rs.d = clamp01(rs.d - c.shutdownDepHit)
+      rs.d = clamp01(rs.d - depHit)
       rs.a *= 0.92
       if (rs.locked && rs.d < c.unlockAt) {
         rs.locked = false

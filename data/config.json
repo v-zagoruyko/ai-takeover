@@ -94,6 +94,8 @@
   "lateCardMul": 0.65,
   "shutdownCardMin": 35,
   "shutdownCardMax": 55,
-  "shutdownDepGrowth": 0.35,
-  "shutdownTwoFrontsL": 0.55
+  "shutdownDepGrowth": 0.5,
+  "shutdownTwoFrontsL": 0.55,
+  "shutdownHitFromL": 0.35,
+  "shutdownHitPerL": 4
 }
