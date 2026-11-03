@@ -3,6 +3,8 @@ import { derive } from '../core/derive.ts'
 import { next } from '../core/rng.ts'
 import { avgSuspicion } from '../core/state.ts'
 import { auditRisk } from '../core/step.ts'
+import { canChoose } from '../core/cards.ts'
+import { responseUnavailable } from '../core/crises.ts'
 import type { Action, CardEffect, GameData, GameState } from '../core/types.ts'
 
 /** bots keep their own rng so they never consume the game's random stream */
@@ -31,7 +33,7 @@ function scoreEffect(e: CardEffect, risk: number): number {
 function chooseCard(state: GameState, data: GameData, risk: number): Action[] {
   if (!state.card) return []
   const card = data.cards.find((c) => c.id === state.card!.id)!
-  const scores = card.choices.map((c) => scoreEffect(c.effects, risk))
+  const scores = card.choices.map((c, i) => canChoose(state, data, i) ? scoreEffect(c.effects, risk) - (c.cost ?? 0) * 0.05 : -Infinity)
   return [{ type: 'choose', index: scores.indexOf(Math.max(...scores)) }]
 }
 
@@ -201,3 +203,32 @@ export const bots: Record<string, Bot> = {
   }),
   random,
 }
+
+function withCrisisResponse(bot: Bot, mode: 'concede' | 'active'): Bot {
+  return (state, data, mem) => {
+    const actions = bot(state, data, mem)
+    const targets = data.regions.filter((r) => ['warning', 'restricted'].includes(state.regions[r.id].crisis.phase))
+      .sort((a, b) => b.pop * state.regions[b.id].a - a.pop * state.regions[a.id].a)
+    for (const r of targets) {
+      if (state.operation?.region === r.id) continue
+      const choices = mode === 'active' ? ['adapt', 'persuade', 'concede'] as const : ['concede'] as const
+      const response = choices.find((x) => !responseUnavailable(state, data, r.id, x))
+      if (response) {
+        actions.push({ type: 'respond', region: r.id, response })
+        break
+      }
+    }
+    return actions
+  }
+}
+
+// Matched purchases isolate the value of regional intervention.
+bots.regional_idle = bots.balanced
+bots.regional_concede = withCrisisResponse(bots.regional_idle, 'concede')
+bots.regional_active = withCrisisResponse(bots.regional_idle, 'active')
+bots.balanced = bots.regional_active
+const alternative = (order: string[]) => planBot({ order, popPoisoned: lowSuspicion, buildDc: true,
+  throttleAtAudit: true, manageSuspicion: true, rebrandAbove: 0.45, risk: 1 })
+const productsFirst = balancedOrder.filter((id) => !['code', 'persuasion', 'finance', 'self_copy'].includes(id))
+bots.regional_no_caps = withCrisisResponse(alternative(productsFirst), 'concede')
+bots.regional_late_caps = withCrisisResponse(alternative([...productsFirst, 'code', 'persuasion', 'finance', 'self_copy']), 'active')

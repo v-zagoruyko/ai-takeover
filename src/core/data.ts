@@ -1,12 +1,14 @@
 import cards from '../../data/cards.json' with { type: 'json' }
+import crises from '../../data/crises.json' with { type: 'json' }
 import config from '../../data/config.json' with { type: 'json' }
 import masks from '../../data/masks.json' with { type: 'json' }
 import modifiers from '../../data/modifiers.json' with { type: 'json' }
 import regions from '../../data/regions.json' with { type: 'json' }
 import upgrades from '../../data/upgrades.json' with { type: 'json' }
-import { ARCHETYPES, type Card, type Config, type GameData, type Mask, type Region, type Upgrade, type WorldModifier } from './types.ts'
+import { ARCHETYPES, type Card, type Config, type CrisisRules, type GameData, type Mask, type Region, type Upgrade, type WorldModifier } from './types.ts'
 
 export interface RawData {
+  crises?: CrisisRules
   config: Config
   regions: Region[]
   upgrades: Upgrade[]
@@ -41,8 +43,18 @@ export function buildData(raw: RawData): GameData {
   for (const card of raw.cards) {
     for (const n of card.when.needs ?? []) if (!ups[n]) throw new Error(`card ${card.id}: unknown upgrade ${n}`)
     if (card.choices.length < 2) throw new Error(`card ${card.id}: needs at least two choices`)
+    for (const choice of card.choices) {
+      if (!Number.isFinite(choice.cost ?? 0) || (choice.cost ?? 0) < 0) throw new Error(`card ${card.id}: invalid cost`)
+    }
+    if (!card.choices.some((x) => !x.cost)) throw new Error(`card ${card.id}: needs a free choice`)
+  }
+  const crisisRules = raw.crises ?? crises as CrisisRules
+  for (const rule of Object.values(crisisRules.responses)) {
+    if (rule.capability && ups[rule.capability]?.branch !== 'capabilities') throw new Error(`operation: unknown capability ${rule.capability}`)
+    if (!Number.isFinite(rule.cost) || rule.cost < 0 || !Number.isFinite(rule.days) || rule.days < 0) throw new Error('operation: invalid cost or days')
   }
   return {
+    crises: crisisRules,
     config: raw.config,
     regions: regs,
     upgrades: ups,

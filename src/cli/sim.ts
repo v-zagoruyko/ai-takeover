@@ -7,6 +7,11 @@ import { step } from '../core/step.ts'
 import type { GameData, GameState } from '../core/types.ts'
 
 interface RunResult {
+  warnings: number
+  responses: number
+  spent: number
+  losses: number
+  retakes: number
   final: GameState
   aTo10: number | null
   aTo40: number | null
@@ -17,9 +22,18 @@ interface RunResult {
 function runGame(data: GameData, bot: Bot, seed: number, startRegion: string, mask: string, trace: boolean): RunResult {
   let state = createState(data, { seed, startRegion, mask })
   const mem = { rng: (seed * 7919) >>> 0 }
-  const res: RunResult = { final: state, aTo10: null, aTo40: null, firstLock: null, shutdownL: null }
+  const res: RunResult = { final: state, aTo10: null, aTo40: null, firstLock: null, shutdownL: null,
+    warnings: 0, responses: 0, spent: 0, losses: 0, retakes: 0 }
+  const lost = new Set<string>()
   while (!state.outcome) {
     state = step(state, data, bot(state, data, mem))
+    for (const e of state.events) {
+      if (e.type === 'crisis_warning') res.warnings++
+      if (e.type === 'operation_done') res.responses++
+      if (e.type === 'operation_started') res.spent += e.cost
+      if (e.type === 'unlock') { res.losses++; lost.add(e.region) }
+      if (e.type === 'lock' && lost.has(e.region)) { res.retakes++; lost.delete(e.region) }
+    }
     const A = worldA(state, data)
     if (res.aTo10 === null && A >= 0.1) res.aTo10 = state.tick
     if (res.aTo40 === null && A >= 0.4) res.aTo40 = state.tick
@@ -64,6 +78,8 @@ function summarize(name: string, results: RunResult[]): void {
   console.log(`  win ${pct(wins, n)}  | ${Object.entries(kinds).map(([k, v]) => `${k} ${pct(v, n)}`).join('  ')}`)
   if (wins) console.log(`  endings: ${Object.entries(endings).map(([k, v]) => `${k} ${v}`).join(', ')}`)
   console.log(`  game length: ${median(results.map((r) => r.final.tick))}`)
+  const avg = (key: 'warnings' | 'responses' | 'spent' | 'losses' | 'retakes') => (results.reduce((sum, r) => sum + r[key], 0) / n).toFixed(1)
+  console.log(`  regional/game: warnings ${avg('warnings')}, responses ${avg('responses')}, spent ${avg('spent')}, control lost ${avg('losses')}, retaken ${avg('retakes')}`)
   const sd = results.filter((r) => r.shutdownL !== null)
   if (sd.length) {
     const sdWins = sd.filter((r) => r.final.outcome!.kind.startsWith('win')).length

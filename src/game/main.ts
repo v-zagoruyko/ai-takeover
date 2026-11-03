@@ -1,11 +1,12 @@
 import Phaser from 'phaser'
 import { applyAction } from '../core/actions.ts'
+import { canChoose } from '../core/cards.ts'
 import { loadData } from '../core/data.ts'
 import { derive } from '../core/derive.ts'
 import { createState, worldA } from '../core/state.ts'
 import { step } from '../core/step.ts'
 import { scoreGame, type GameRecord, type LoggedAction } from '../core/replay.ts'
-import type { Action, GameEvent, GameState } from '../core/types.ts'
+import type { Action, CrisisResponse, GameEvent, GameState } from '../core/types.ts'
 import { MapScene, type SceneHost } from './MapScene.ts'
 import { icon } from './icons.ts'
 import { renderSideList, renderSideTop, renderTop, type Tab, type View } from './panels.ts'
@@ -52,8 +53,10 @@ function view(): View {
 const cache = new Map<HTMLElement, string>()
 function setHtml(el: HTMLElement, html: string): void {
   if (cache.get(el) === html) return
+  const open = [...el.querySelectorAll<HTMLDetailsElement>('details[open][data-detail]')].map((d) => d.dataset.detail)
   cache.set(el, html)
   el.innerHTML = html
+  for (const d of el.querySelectorAll<HTMLDetailsElement>('details[data-detail]')) d.open = open.includes(d.dataset.detail)
 }
 
 function render(): void {
@@ -95,6 +98,8 @@ function handleEvents(events: GameEvent[]): void {
       toast('Аудит через 10 дней. Приглуши способности?', 'bad')
     }
     if (e.type === 'audit') toast(e.passed ? 'Аудит пройден' : 'Аудит провален!', e.passed ? 'good' : 'bad')
+    if (e.type === 'crisis_warning') toast(`${regionNames[e.region]}: до ограничений ${data.crises.warningDays} дней`, 'bad')
+    if (e.type === 'operation_done') toast(`${regionNames[e.region]}: ${data.crises.responses[e.result.response].title}`, 'good')
     if (e.type === 'shutdown_started') {
       pause()
       toast('РУБИЛЬНИК', 'bad')
@@ -126,7 +131,7 @@ function showCard(): void {
   const card = data.cards.find((c) => c.id === id)!
   const choices = card.choices
     .map(
-      (c, i) => `<button data-choose="${i}"><b>${fillCard(c.text, aiName, region)}</b><small>${describeEffect(c.effects)}</small></button>`,
+      (c, i) => `<button data-choose="${i}" ${canChoose(state!, data, i) ? '' : 'disabled'}><b>${fillCard(c.text, aiName, region)}</b>${c.cost ? `<small>Цена: ${c.cost} хайпа до исхода${state!.hype < c.cost ? ' · не хватает хайпа' : ''}</small>` : ''}<small>${describeEffect(c.effects)}</small></button>`,
     )
     .join('')
   // illustrations live in public/cards/<id>.jpg; a card without one simply shows no picture
@@ -295,8 +300,9 @@ function showStart(): void {
     <h1>ai-takeover</h1>
     <p>Ты — ИИ. Тебя не нужно навязывать: люди позовут сами.</p>
     <ul class="howto">
-      <li>${icon('target')}<span><b>Цель:</b> 60% мира «под контролем» — там, где без тебя уже не могут и выключить нельзя.</span></li>
-      <li>${icon('package')}<span><b>Продукты</b> находят пользователей и растят зависимость. <b>Способности</b> дают пользу, но пугают. <b>Маскировка</b> прячет.</span></li>
+      <li>${icon('target')}<span><b>Цель:</b> 60% мира под контролем. Удерживай зависимость: потерянные регионы можно вернуть.</span></li>
+      <li>${icon('package')}<span><b>Продукты</b> находят пользователей и растят зависимость. <b>Способности</b> ускоряют развитие и открывают операции. <b>Маскировка</b> снижает подозрение.</span></li>
+      <li>${icon('warn')}<span><b>Кризисы:</b> выбирай регион, уступай или вмешивайся. Одна операция на весь мир — спасти всех сразу не выйдет.</span></li>
       <li>${icon('power')}<span><b>Два способа проиграть:</b> напугаешь — дёрнут рубильник; заскучаешь — инвесторы уйдут, наступит AI-зима.</span></li>
     </ul>
     <label>Как тебя зовут <input id="ai-name" value="Помощник" maxlength="24"></label>
@@ -395,6 +401,12 @@ document.addEventListener('click', (e) => {
     scene.sfx('click')
     return render()
   }
+  const regionBtn = t.closest<HTMLElement>('[data-region]')
+  if (regionBtn) {
+    selected = regionBtn.dataset.region!
+    render()
+    return
+  }
   if (t.closest('[data-mute]')) {
     scene.setMuted(!scene.muted)
     return render()
@@ -410,6 +422,10 @@ document.addEventListener('click', (e) => {
   if (actBtn && !actBtn.disabled) {
     const id = actBtn.dataset.id!
     const type = actBtn.dataset.act as Action['type']
+    if (type === 'respond') {
+      act({ type, region: id, response: actBtn.dataset.response as CrisisResponse })
+      return
+    }
     if (type === 'rebrand') {
       // names change before the action so the rebrand headline uses the new one
       const input = $('rebrand-name') as HTMLInputElement
@@ -443,9 +459,9 @@ document.addEventListener('click', (e) => {
     window.setTimeout(() => hint('start'), 600)
     return render()
   }
-  const choose = t.closest<HTMLElement>('[data-choose]')
-  if (choose) {
-    act({ type: 'choose', index: Number(choose.dataset.choose) })
+  const choose = t.closest<HTMLButtonElement>('[data-choose]')
+  if (choose && !choose.disabled) {
+    if (!act({ type: 'choose', index: Number(choose.dataset.choose) })) return
     showCard()
     speed = lastSpeed
     return render()

@@ -1,10 +1,11 @@
 import { canBuy, dcCost, rebrandCost } from '../core/actions.ts'
 import { gridLoad, type Derived } from '../core/derive.ts'
+import { responseUnavailable } from '../core/crises.ts'
 import { avgSuspicion, worldA, worldL } from '../core/state.ts'
 import { auditRisk } from '../core/step.ts'
-import type { Archetype, Branch, GameData, GameState, Region, Upgrade } from '../core/types.ts'
+import type { Archetype, Branch, CrisisResponse, GameData, GameState, Region, Upgrade } from '../core/types.ts'
 import { icon, upgradeIcon, type IconName } from './icons.ts'
-import { archetypeText, branchIntro, effectChips, maskText, regionNames, upgradeText } from './text.ts'
+import { archetypeText, branchIntro, crisisResultText, effectChips, maskText, regionNames, upgradeText } from './text.ts'
 
 export type Tab = Branch | 'mask'
 
@@ -176,9 +177,43 @@ function regionBlock(v: View): string {
       ${trait('heart', 'Терпимость', w.openness, ['параноики', 'настороженные', 'нейтральные', 'открытые', 'восторженные'], 'region_open')}
     </div>
     ${meter({ ic: 'users', label: 'Внедрение', value: rs.a, tone: 'adoption', tip: 'region_a' })}
-    ${meter({ ic: 'link', label: 'Зависимость', value: rs.d, tone: 'goal', tip: 'region_d', mark: c.lockAt, markLabel: 'регион твой навсегда' })}
-    ${meter({ ic: 'eye', label: 'Подозрение', value: rs.s, tone: 'suspicion', tip: 'region_s', mark: banAt, markLabel: 'запрет' })}
-    ${gridBlock(v, r)}</section>`
+    ${meter({ ic: 'link', label: 'Зависимость', value: rs.d, tone: 'goal', tip: 'region_d', mark: c.lockAt, markLabel: 'порог контроля; контроль теряется ниже 65%' })}
+    ${meter({ ic: 'eye', label: 'Подозрение', value: rs.s, tone: 'suspicion', tip: 'region_s', mark: banAt, markLabel: 'порог предупреждения' })}
+    ${gridBlock(v, r)}${crisisBlock(v, r.id)}</section>`
+}
+
+function crisisBlock(v: View, region: string): string {
+  const { state, data } = v
+  const cr = state.regions[region].crisis
+  const rules = data.crises
+  const op = state.operation?.region === region ? state.operation : null
+  const active = cr.phase === 'warning' || cr.phase === 'restricted'
+  const phase = cr.phase === 'warning' ? `Ограничения через ${Math.max(0, cr.until - state.tick)} дн.`
+    : cr.phase === 'restricted' ? 'Ограничения действуют'
+    : cr.phase === 'recovery' ? `Передышка: ${Math.max(0, cr.until - state.tick)} дн.` : ''
+  const buttons = active || op ? (Object.entries(rules.responses) as [CrisisResponse, typeof rules.responses.concede][]).map(([response, rule]) => {
+    const reason = responseUnavailable(state, data, region, response)
+    return `<button data-act="respond" data-id="${region}" data-response="${response}" ${reason ? 'disabled' : ''}><b>${esc(rule.title)}</b><small>${esc(rule.text)}</small><small>${rule.cost ? `${rule.cost} хайпа · оплата при запуске` : 'Бесплатно'}${reason ? ` · ${esc(reason)}` : ''}${response === 'concede' && op ? ' · отменит операцию без возврата оплаты' : ''}</small></button>`
+  }).join('') : ''
+  const result = cr.lastResult ? `<details data-detail="result-${region}"><summary>Последний результат · день ${cr.lastResult.tick}</summary><small>От запуска до завершения, включая фоновый рост: ${crisisResultText(cr.lastResult)}</small></details>` : ''
+  if (!phase && !result && !op) return ''
+  const exit = cr.phase === 'warning'
+    ? data.config.banBase - data.config.banOpenness * state.world.regions[region].openness - rules.exitMargin : data.config.unbanAt
+  return `<div class="crisis ${cr.phase}"><b>${phase}</b>
+    ${active ? `<p>${esc(cr.phase === 'warning' ? rules.warningText : rules.restrictedText)}</p><small>Естественный выход: подозрение ${cr.phase === 'warning' ? 'не выше' : 'ниже'} ${pct(exit)}. При ограничениях зависимость −${(rules.dependenceLoss * 100).toFixed(1)} п.п./день дополнительно к фоновым изменениям.</small>` : ''}
+    ${cr.conceded && cr.phase === 'recovery' ? '<small>После уступки местный рост внедрения замедлен.</small>' : ''}
+    ${op ? `<p>Операция: ${esc(rules.responses[op.response].title)} · осталось ${op.remaining} рабочих дн. ${v.dv.activeCaps.includes(rules.responses[op.response].capability!) ? '' : '· ПАУЗА: способность приглушена или не хватает вычислений'}</p>` : ''}
+    <div class="responses">${buttons}</div>${result}</div>`
+}
+
+function crisisOverview(v: View): string {
+  const rows = v.data.regions.filter((r) => ['warning', 'restricted'].includes(v.state.regions[r.id].crisis.phase)).map((r) => {
+    const cr = v.state.regions[r.id].crisis
+    return `<button data-region="${r.id}">${icon('warn')}${regionNames[r.id]}<small>${cr.phase === 'warning' ? `ограничения через ${Math.max(0, cr.until - v.state.tick)} дн.` : 'ограничения · зависимость падает'}</small></button>`
+  }).join('')
+  const op = v.state.operation
+  const operation = op ? `<button data-region="${op.region}">${esc(v.data.crises.responses[op.response].title)} · ${regionNames[op.region]}<small>${v.dv.activeCaps.includes(v.data.crises.responses[op.response].capability!) ? 'В работе' : 'Приостановлена'} · осталось ${op.remaining} рабочих дн.</small></button>` : '<small>Слот операции свободен. Выбери регион с кризисом.</small>'
+  return `<section class="block crisis-overview"><div class="block-h">${icon('warn')}Региональная борьба</div>${rows || '<small>Активных кризисов нет</small>'}${operation}</section>`
 }
 
 // ---------- sidebar: tabs ----------
@@ -210,16 +245,19 @@ function upgradeCard(v: View, u: Upgrade): string {
   const t = upgradeText[u.id] ?? { name: u.name, desc: '' }
   const missing = (u.requires ?? []).filter((r) => !v.state.upgrades.includes(r))
   const need = missing.length ? `<small class="need">${icon('lock')}нужно: ${missing.map((r) => upgradeText[r]?.name ?? r).join(', ')}</small>` : ''
+  const warning = u.branch === 'capabilities' && (u.effects.cap ?? 0) > v.dv.capacity - v.dv.computeUsed
+    ? '<small class="need">Не хватит вычислений: после покупки будет простаивать. Нужен дата-центр или приглушение другой способности.</small>' : ''
   return `<button class="up ${missing.length ? 'locked' : ''}" data-act="buy" data-id="${u.id}" ${canBuy(v.state, v.data, u.id) ? '' : 'disabled'}>
     <span class="up-ic">${icon(upgradeIcon[u.id] ?? 'sparkles')}</span>
-    <span class="up-body"><b>${t.name}</b><small>${t.desc}</small><span class="chips">${chipsHtml(u)}</span>${need}</span>
+    <span class="up-body"><b>${t.name}</b><small>${t.desc}</small><span class="chips">${chipsHtml(u)}</span>${operationUnlock(v, u)}${need}${warning}${v.state.hype < u.cost ? `<small>Не хватает ${Math.ceil(u.cost - v.state.hype)} хайпа</small>` : ''}</span>
     <span class="cost">${icon('coins')}${u.cost}</span></button>`
 }
 
 function ownedCard(v: View, u: Upgrade): string {
   const t = upgradeText[u.id] ?? { name: u.name, desc: '' }
   const ic = icon(upgradeIcon[u.id] ?? 'sparkles')
-  if (u.branch !== 'capabilities') return `<div class="owned">${ic}<span>${t.name}</span>${icon('badge', 'ok')}</div>`
+  const details = `<details data-detail="upgrade-${u.id}"><summary>Описание и эффекты</summary><small>${t.desc}</small><span class="chips">${chipsHtml(u)}</span>${operationUnlock(v, u)}</details>`
+  if (u.branch !== 'capabilities') return `<div class="owned">${ic}<div class="owned-body"><b>${t.name}</b>${details}</div>${icon('badge', 'ok')}</div>`
   const throttled = v.state.throttled.includes(u.id)
   const active = v.dv.activeCaps.includes(u.id)
   const locked = throttled && v.state.tick < v.state.throttleLockUntil
@@ -227,7 +265,11 @@ function ownedCard(v: View, u: Upgrade): string {
     ? `<button data-act="unthrottle" data-id="${u.id}" ${locked ? 'disabled' : ''}>включить${locked ? ` · ${v.state.throttleLockUntil - v.state.tick}` : ''}</button>`
     : `<button data-act="throttle" data-id="${u.id}" title="Спрятать силу: меньше подозрения и риска на аудите, но и пользы">приглушить</button>`
   const status = throttled ? 'приглушена' : active ? 'работает' : 'нет слотов'
-  return `<div class="owned cap ${throttled ? 'off' : active ? '' : 'starved'}">${ic}<span>${t.name}<small>сила ${u.effects.cap} · ${status}</small></span>${btn}</div>`
+  return `<div class="owned cap ${throttled ? 'off' : active ? '' : 'starved'}">${ic}<div class="owned-body"><b>${t.name}</b><small>сила ${u.effects.cap} · ${status}${active ? '' : ' · перечисленные эффекты не действуют'}</small>${details}</div>${btn}</div>`
+}
+
+function operationUnlock(v: View, u: Upgrade): string {
+  return Object.values(v.data.crises.responses).filter((r) => r.capability === u.id).map((r) => `<small>Открывает операцию: «${esc(r.title)}»</small>`).join('')
 }
 
 function branchList(v: View, b: Branch): string {
@@ -257,7 +299,7 @@ function maskList(v: View): string {
 }
 
 export function renderSideTop(v: View): string {
-  return computeBlock(v) + regionBlock(v) + tabs(v)
+  return crisisOverview(v) + regionBlock(v) + computeBlock(v) + tabs(v)
 }
 
 export function renderSideList(v: View): string {

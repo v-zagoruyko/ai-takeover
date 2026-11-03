@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { DatabaseSync } from 'node:sqlite'
 import { loadData } from '../src/core/data.ts'
 import { verify } from './scores.ts'
+import { RULES_VERSION, SCORES_TABLE } from '../src/core/version.ts'
 
 const PORT = Number(process.env.PORT ?? 8787)
 const DB_PATH = process.env.DB_PATH ?? 'leaderboard.db'
@@ -12,7 +13,7 @@ const RATE = { posts: 8, windowMs: 10 * 60 * 1000 }
 
 const data = loadData()
 const db = new DatabaseSync(DB_PATH)
-db.exec(`create table if not exists scores (
+db.exec(`create table if not exists ${SCORES_TABLE} (
   id integer primary key,
   hash text unique not null,
   name text not null,
@@ -23,12 +24,12 @@ db.exec(`create table if not exists scores (
   days integer not null,
   created_at text not null default (datetime('now'))
 )`)
-db.exec('create index if not exists scores_score on scores (score desc)')
+db.exec(`create index if not exists ${SCORES_TABLE}_score on ${SCORES_TABLE} (score desc)`)
 
-const insert = db.prepare('insert into scores (hash, name, ai, score, kind, ending, days) values (?, ?, ?, ?, ?, ?, ?)')
-const byHash = db.prepare('select score from scores where hash = ?')
-const rankOf = db.prepare('select count(*) + 1 as rank from scores where score > ?')
-const top = db.prepare('select name, ai, score, kind, ending, days, created_at from scores order by score desc, id asc limit ?')
+const insert = db.prepare(`insert into ${SCORES_TABLE} (hash, name, ai, score, kind, ending, days) values (?, ?, ?, ?, ?, ?, ?)`)
+const byHash = db.prepare(`select score from ${SCORES_TABLE} where hash = ?`)
+const rankOf = db.prepare(`select count(*) + 1 as rank from ${SCORES_TABLE} where score > ?`)
+const top = db.prepare(`select name, ai, score, kind, ending, days, created_at from ${SCORES_TABLE} order by score desc, id asc limit ?`)
 
 const posts = new Map<string, number[]>()
 function limited(ip: string): boolean {
@@ -77,7 +78,7 @@ createServer(async (req, res) => {
       if (!check.ok) return send(res, check.status, { error: check.error })
       const v = check.value
       const b = body as Record<string, unknown>
-      const hash = createHash('sha256').update(JSON.stringify([b.seed, b.startRegion, b.mask, b.log])).digest('hex')
+      const hash = createHash('sha256').update(JSON.stringify([RULES_VERSION, b.seed, b.startRegion, b.mask, b.log])).digest('hex')
       const existing = byHash.get(hash) as { score: number } | undefined
       if (!existing) insert.run(hash, v.name, v.ai, v.score.total, v.kind, v.ending, v.days)
       const { rank } = rankOf.get(v.score.total) as { rank: number }

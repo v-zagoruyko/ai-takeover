@@ -89,6 +89,8 @@ export interface CardEffect {
 
 export interface CardChoice {
   text: string
+  /** paid before rolling the outcome */
+  cost?: number
   effects: CardEffect
 }
 
@@ -231,6 +233,7 @@ export interface RegionParams {
 }
 
 export interface GameData {
+  crises: CrisisRules
   config: Config
   regions: Region[]
   upgrades: Record<string, Upgrade>
@@ -242,6 +245,7 @@ export interface GameData {
 }
 
 export interface RegionState {
+  crisis: { phase: 'calm' | 'warning' | 'restricted' | 'recovery'; until: number; conceded: boolean; lastResult: CrisisResult | null }
   a: number
   d: number
   s: number
@@ -284,6 +288,9 @@ export interface Outcome {
 }
 
 export type GameEvent =
+  | { type: 'crisis_warning' | 'crisis_restricted' | 'crisis_recovered'; region: string }
+  | { type: 'operation_done'; region: string; result: CrisisResult }
+  | { type: 'operation_started'; region: string; response: CrisisResponse; cost: number }
   | { type: 'ban' | 'unban' | 'lock' | 'unlock' | 'dc_shutdown'; region: string }
   | { type: 'funding_round'; milestone: number; hype: number }
   | { type: 'audit_warning'; at: number }
@@ -296,6 +303,7 @@ export type GameEvent =
   | { type: 'card_resolved'; card: string; choice: number; success: boolean }
 
 export interface GameState {
+  operation: { region: string; response: 'adapt' | 'persuade'; remaining: number; before: { a: number; d: number; s: number } } | null
   tick: number
   rng: number
   hype: number
@@ -331,6 +339,7 @@ export interface GameState {
 }
 
 export type Action =
+  | { type: 'respond'; region: string; response: CrisisResponse }
   | { type: 'buy'; upgrade: string }
   | { type: 'throttle'; upgrade: string }
   | { type: 'unthrottle'; upgrade: string }
@@ -338,3 +347,35 @@ export type Action =
   | { type: 'rebrand'; mask: string }
   | { type: 'pop_bubble'; id: number }
   | { type: 'choose'; index: number }
+
+export type CrisisResponse = 'concede' | 'adapt' | 'persuade'
+
+export interface CrisisResult {
+  response: CrisisResponse
+  tick: number
+  before: { a: number; d: number; s: number }
+  after: { a: number; d: number; s: number }
+}
+
+export interface CrisisRules {
+  minAdoption: number
+  warningDays: number
+  recoveryDays: number
+  maxWarnings: number
+  exitMargin: number
+  dependenceLoss: number
+  concessionGrowthMul: number
+  title: string
+  warningText: string
+  restrictedText: string
+  responses: Record<CrisisResponse, {
+    title: string
+    text: string
+    cost: number
+    days: number
+    capability?: string
+    suspicion: number
+    adoptionMul: number
+    dependence: number
+  }>
+}

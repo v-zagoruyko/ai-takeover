@@ -99,6 +99,21 @@ button.on:hover:not(:disabled) { background: #5ee6d8; }
 .owned.cap.off { background: rgba(255,255,255,.04); color: #8a93a8; }
 .owned.cap.starved { background: rgba(255, 92, 110, .08); }
 .owned.cap.starved small { color: #ff9aa5; }
+.owned-body { flex: 1; min-width: 0; }
+.owned details { margin-top: 4px; }
+.owned summary, .crisis summary { cursor: pointer; font-size: 12px; color: #a9bcd9; }
+.owned .chip, .up .chip { white-space: normal; }
+.crisis { margin-top: 10px; border-top: 1px solid #48516a; padding-top: 8px; }
+.crisis.warning > b { color: #ffd166; }
+.crisis.restricted > b { color: #ff9aa5; }
+.crisis.recovery > b { color: #7fe9de; }
+.crisis p { font-size: 12px; margin: 6px 0; }
+.responses { display: grid; gap: 6px; margin: 8px 0; }
+.responses button { text-align: left; padding: 8px; }
+.responses button:disabled { opacity: .65; }
+.responses small { margin-top: 4px; }
+.crisis-overview button { display: block; width: 100%; text-align: left; margin-top: 6px; }
+.crisis-overview > small { margin-top: 6px; }
 .mask-card { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; margin: 6px 0; border: 1px solid #2d3446; border-radius: 10px; }
 .mask-card b { display: flex; align-items: center; gap: 6px; }
 .mask-card.current { border-color: #ffd166; }

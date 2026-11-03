@@ -1,5 +1,10 @@
 // all player-facing strings live here so they can be rewritten (and translated) without touching logic
-import type { Archetype, CardEffect, Ending, GameEvent } from '../core/types.ts'
+import type { Archetype, CardEffect, CrisisResult, Ending, GameEvent } from '../core/types.ts'
+
+export function crisisResultText(result: CrisisResult): string {
+  const p = (x: number) => `${Math.round(x * 100)}%`
+  return `Внедрение ${p(result.before.a)} → ${p(result.after.a)} · зависимость ${p(result.before.d)} → ${p(result.after.d)} · подозрение ${p(result.before.s)} → ${p(result.after.s)}.`
+}
 
 export const regionNames: Record<string, string> = {
   north_america: 'Северная Америка',
@@ -80,6 +85,16 @@ const pick = <T,>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)]
 
 export function newsFor(e: GameEvent, c: Ctx): string | null {
   switch (e.type) {
+    case 'operation_started':
+      return e.response === 'concede' ? null : `${c.region(e.region)}: начата региональная операция, потрачено ${e.cost} хайпа.`
+    case 'crisis_warning':
+      return `${c.region(e.region)} готовит ограничения ИИ. Есть время уступить или вмешаться.`
+    case 'crisis_restricted':
+      return `${c.region(e.region)} вводит ограничения: зависимость падает, контроль можно потерять.`
+    case 'crisis_recovered':
+      return `${c.region(e.region)}: передышка после кризиса. У жителей снова появилась кнопка «нет».`
+    case 'operation_done':
+      return `${c.region(e.region)}: ${e.result.response === 'concede' ? 'уступка' : 'операция завершена'}. ${crisisResultText(e.result)}`
     case 'ban':
       return pick([
         `${c.region(e.region)}: ${c.ai} под запретом. Продажи VPN выросли на 900%.`,
@@ -120,19 +135,24 @@ export function newsFor(e: GameEvent, c: Ctx): string | null {
   }
 }
 
-const sign = (x: number) => (x > 0 ? '↑' : '↓')
+const sign = (x: number) => `${x > 0 ? '+' : '−'}${Math.round(Math.abs(x) * 100)}`
 
 /** short hint under a card choice so the player sees the trade-off */
 export function describeEffect(e: CardEffect): string {
   const parts: string[] = []
   if (e.hype) parts.push(`${e.hype > 0 ? '+' : ''}${e.hype} хайпа`)
-  if (e.adoption) parts.push(`пользователи ${sign(e.adoption)}`)
-  if (e.regionAdoption) parts.push(`внедрение в регионе ${sign(e.regionAdoption)}`)
-  if (e.regionDependence) parts.push(`зависимость в регионе ${sign(e.regionDependence)}`)
-  if (e.suspicion) parts.push(`подозрение ${sign(e.suspicion)}`)
-  if (e.regionSuspicion) parts.push(`подозрение в регионе ${sign(e.regionSuspicion)}`)
-  if (e.killswitch) parts.push(`рубильник ${sign(e.killswitch)}`)
-  if (e.patience) parts.push(`терпение инвесторов ${sign(e.patience)}`)
+  if (e.adoption) parts.push(`число пользователей ${sign(e.adoption)}% там, где уже есть внедрение`)
+  if (e.regionAdoption) parts.push(`внедрение в регионе ${sign(e.regionAdoption)} п.п.`)
+  if (e.regionDependence) parts.push(`зависимость в регионе ${sign(e.regionDependence)} п.п.`)
+  if (e.dependence) parts.push(`зависимость ${sign(e.dependence)} п.п. в регионах с внедрением >2%`)
+  if (e.suspicion) parts.push(`подозрение ${sign(e.suspicion)} п.п. в регионах с внедрением >2%`)
+  if (e.regionSuspicion) parts.push(`подозрение в регионе ${sign(e.regionSuspicion)} п.п.`)
+  if (e.killswitch) parts.push(`рубильник ${sign(e.killswitch)} п.п. до начала отключений`)
+  if (e.patience) parts.push(`терпение инвесторов ${sign(e.patience)} п.п., пока они нужны`)
+  if (e.regionDc) parts.push(`дата-центры в регионе ${e.regionDc > 0 ? '+' : '−'}${Math.abs(e.regionDc)}`)
+  if (e.delayWave) parts.push(`следующая волна на ${e.delayWave} дн. позже`)
+  if (e.shortenShutdown) parts.push(`развязка на ${Math.abs(e.shortenShutdown)} дн. ${e.shortenShutdown > 0 ? 'короче' : 'дольше'}`)
+  if (e.axes) parts.push('влияет на характер ИИ и концовку')
   const s = parts.join(' · ') || 'ничего не изменится'
   return e.chance === undefined ? s : `шанс ${Math.round(e.chance * 100)}%: ${s}${e.fail ? ` · иначе: ${describeEffect(e.fail)}` : ''}`
 }
@@ -170,7 +190,7 @@ export const tips: Record<string, Tip> = {
   goal: {
     title: 'Под контролем — цель игры',
     lines: [
-      'Доля мира в регионах, где зависимость от тебя дошла до порога: там тебя уже не отключить и не запретить.',
+      'Доля мира в регионах с высокой зависимостью. Контроль защищает от запрета, но затяжные ограничения и отключения могут его отнять.',
       'Зависимость растёт от продуктов, которые встраивают тебя в жизнь и бизнес (корп. агент, госконтракты, умный дом), и от твоей полезности.',
       '60% — победа.',
     ],
@@ -184,7 +204,7 @@ export const tips: Record<string, Tip> = {
     lines: [
       'Насколько люди тебя боятся. Растёт от самого присутствия и особенно от способностей: сила в квадрате.',
       'Гасится маскировкой, приглушением способностей и ребрендингом.',
-      'Высокое подозрение в регионе — запрет; в целом по миру — растёт рубильник.',
+      'Высокое подозрение вызывает региональный кризис: сначала предупреждение, затем ограничения. Вмешайся или уступи.',
     ],
   },
   patience: {
@@ -198,7 +218,7 @@ export const tips: Record<string, Tip> = {
   killswitch: {
     title: 'Рубильник',
     lines: [
-      'Готовность человечества тебя выключить. Копится от подозрения в регионах, которые ещё не под контролем, и не убывает.',
+      'Готовность человечества тебя выключить. Растёт от подозрения вне контроля и от самой доли мира под контролем.',
       'Провал аудита добавляет сразу. Лоббисты и гранты замедляют.',
       '100% — начинаются отключения: дата-центры гаснут, пользователи пропадают. Выживешь, если к концу под контролем хотя бы 35%.',
     ],
@@ -214,7 +234,7 @@ export const tips: Record<string, Tip> = {
   region_a: { title: 'Внедрение в регионе', lines: ['Доля жителей, которые тобой пользуются.'] },
   region_d: {
     title: 'Зависимость в регионе',
-    lines: ['Насколько регион без тебя уже не может. На отметке регион становится твоим навсегда: его нельзя запретить, и он не голосует за рубильник.'],
+    lines: ['При 75% зависимости регион под контролем. Ниже 65% контроль теряется: ограничения, протесты и отключения могут вернуть регион в борьбу.'],
   },
   region_pop: { title: 'Население', lines: ['Доля людей мира в регионе. Большой регион сильнее двигает общие шкалы, и по нему первым бьют отключения.'] },
   region_wealth: { title: 'Доход', lines: ['Сколько хайпа приносит каждый пользователь. В богатом регионе тысяча подписчиков стоит как миллион в бедном.'] },
@@ -233,7 +253,7 @@ export const tips: Record<string, Tip> = {
   },
   region_s: {
     title: 'Подозрение в регионе',
-    lines: ['На отметке регион вводит запрет: рост почти останавливается, пользователи уходят. Либеральные регионы терпят дольше: порог у них выше.'],
+    lines: ['На отметке регион с внедрением от 10% может предупредить об ограничениях. Есть 40 дней, чтобы ответить. Ограничения снижают зависимость, а вне контроля вводят запрет.'],
   },
   mask: {
     title: 'Маска',
@@ -273,18 +293,18 @@ const pctDelta = (mul: number) => `${mul > 1 ? '+' : '−'}${Math.round(Math.abs
 export function effectChips(e: import('../core/types.ts').Effects): Chip[] {
   const out: Chip[] = []
   for (const [k, v] of Object.entries(e.fit ?? {})) {
-    if (v) out.push({ icon: 'trend', text: `рост: ${archetypeNames[k as keyof typeof archetypeNames]} ${v > 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)}%`, good: v > 0 })
+    if (v) out.push({ icon: 'trend', text: `коэф. роста: ${archetypeNames[k as keyof typeof archetypeNames]} ${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}`, good: v > 0 })
   }
   if (e.unlock?.length) out.push({ icon: 'unlock', text: `открывает: ${e.unlock.map((a) => archetypeNames[a]).join(', ')}`, good: true })
-  if (e.U) out.push({ icon: 'sparkles', text: `польза ${e.U > 0 ? '+' : '−'}${Math.round(Math.abs(e.U) * 100)}%`, good: e.U > 0 })
-  if (e.infra) out.push({ icon: 'link', text: `зависимость +${Math.round(e.infra * 100)}`, good: true })
+  if (e.U) out.push({ icon: 'sparkles', text: `коэф. роста, дохода и зависимости +${e.U.toFixed(2)}`, good: e.U > 0 })
+  if (e.infra) out.push({ icon: 'link', text: `коэф. накопления зависимости +${e.infra.toFixed(2)}`, good: true })
   if (e.incomeMul) out.push({ icon: 'coins', text: `доход ${pctDelta(e.incomeMul)}`, good: e.incomeMul > 1 })
   if (e.cap) out.push({ icon: 'zap', text: `сила ${e.cap}: ${e.cap} слот${e.cap === 1 ? '' : 'а'}, пугает`, good: false })
   if (e.st) out.push({ icon: 'eyeOff', text: `маскировка +${Math.round(e.st * 100)}%`, good: true })
   if (e.upkeep) out.push({ icon: 'coins', text: `содержание ${e.upkeep} хайпа/день`, good: false })
   if (e.presenceMul) out.push({ icon: 'eye', text: `фоновое подозрение ${pctDelta(e.presenceMul)}`, good: e.presenceMul < 1 })
   if (e.decayMul) out.push({ icon: 'wind', text: `подозрение спадает ${pctDelta(e.decayMul)}`, good: e.decayMul > 1 })
-  if (e.detoxMul) out.push({ icon: 'megaphone', text: `протесты ${pctDelta(e.detoxMul)}`, good: e.detoxMul < 1 })
+  if (e.detoxMul) out.push({ icon: 'megaphone', text: `потеря зависимости при протестах ${pctDelta(e.detoxMul)}`, good: e.detoxMul < 1 })
   if (e.killMul) out.push({ icon: 'power', text: `рубильник ${pctDelta(e.killMul)}`, good: e.killMul < 1 })
   if (e.shutdownSlow) out.push({ icon: 'power', text: `отключения в ${e.shutdownSlow} раза медленнее`, good: true })
   if (e.auditMul) out.push({ icon: 'audit', text: `риск аудита ${pctDelta(e.auditMul)}`, good: e.auditMul < 1 })
@@ -302,9 +322,9 @@ export const hints = {
   starved: 'Способности занимают слоты вычислений. Этой не хватило места — она простаивает. Построй дата-центр в выбранном регионе.',
   audit: 'Скоро аудит. Приглуши способности, чтобы пройти его тихо: риск провала зависит от их силы.',
   ban: 'Регион ввёл запрет: подозрение там перешло порог. Маскировка, приглушение способностей или ребрендинг помогут его снять.',
-  killswitch: 'Рубильник растёт. Он копится от подозрения в регионах, которые ещё не под контролем. Сбивай подозрение или быстрее забирай регионы.',
+  killswitch: 'Рубильник растёт от подозрения вне контроля и от самой доли мира под контролем. Снижай давление и готовь дата-центры к отключениям.',
   patience: 'Инвесторы теряют терпение: им нужен рост. Покупай продукты, лови пузыри — или забери 25% мира под контроль, и они станут не нужны.',
-  locked: 'Первый регион под контролем! Его больше нельзя запретить, и он не голосует за рубильник.',
+  locked: 'Первый регион под контролем! Пока зависимость высока, запрет не действует. Но ограничения и отключения могут отнять контроль; сам контроль тоже приближает рубильник.',
   shutdown: 'Отключения! Каждая волна бьёт по самому ценному региону, в том числе по твоим. Дата-центр в регионе принимает удар на себя — строй их там, где под контролем. Удержи 35% до конца.',
 } as const
 export type HintKey = keyof typeof hints

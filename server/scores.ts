@@ -1,6 +1,7 @@
 // Validation and verification of submitted games. Pure: no HTTP, no database, easy to test.
 import { replay, scoreGame, type GameRecord, type LoggedAction, type Score } from '../src/core/replay.ts'
 import type { Action, GameData } from '../src/core/types.ts'
+import { RULES_VERSION } from '../src/core/version.ts'
 
 export interface Submission extends GameRecord {
   name: string
@@ -36,6 +37,9 @@ function action(v: unknown): Action | null {
   const a = v as Record<string, unknown>
   const str = (k: string) => typeof a[k] === 'string' && (a[k] as string).length <= 40
   switch (a.type) {
+    case 'respond':
+      return str('region') && ['concede', 'adapt', 'persuade'].includes(a.response as string)
+        ? { type: 'respond', region: a.region as string, response: a.response as 'concede' | 'adapt' | 'persuade' } : null
     case 'buy':
     case 'throttle':
     case 'unthrottle':
@@ -57,6 +61,7 @@ export function verify(body: unknown, data: GameData): Check {
   const bad = (error: string): Check => ({ ok: false, status: 400, error })
   if (!body || typeof body !== 'object') return bad('body must be an object')
   const b = body as Record<string, unknown>
+  if (b.rulesVersion !== RULES_VERSION) return { ok: false, status: 409, error: 'rules changed: refresh the page to start a new game' }
   const name = cleanName(b.name)
   const ai = cleanName(b.ai)
   if (!name) return bad('name: 1–24 characters')

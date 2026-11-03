@@ -4,6 +4,7 @@ import { int, next, range } from './rng.ts'
 import { avgSuspicion, progress, worldA, worldL } from './state.ts'
 import { AXES, type Action, type Ending, type GameData, type GameState, type Outcome } from './types.ts'
 import { updateCards } from './cards.ts'
+import { updateCrises } from './crises.ts'
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 
@@ -21,6 +22,7 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   updateExposures(st, data)
   updateTrends(st, data)
   updateRegions(st, data, dv)
+  updateCrises(st, data, dv)
   st.hype += hypeIncome(st, data, dv)
   payUpkeep(st, data)
   updateInvestors(st, data, dv)
@@ -69,6 +71,7 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
       da = rate * rs.a * (1 - rs.a) + c.kSpill * dv.spillMul * spill * (1 - rs.a) * banMul * slow
       if (rs.banned) da -= c.bannedDecay * rs.a
     }
+    if (rs.crisis.conceded && rs.crisis.phase === 'recovery' && da > 0) da *= data.crises.concessionGrowthMul
     const protest = Math.max(0, rs.s - c.protestAt)
     const dd = c.kDep * rs.a * dv.infra * dv.U * (1 - rs.d) * banMul * depGrowth - c.kDetox * dv.detoxMul * protest * rs.d
     const energyOver = Math.max(0, gridLoad(rs.dc, dv) / w.energy - c.energySafe)
@@ -95,14 +98,6 @@ function updateRegions(st: GameState, data: GameData, dv: Derived): void {
     } else if (rs.locked && rs.d < c.unlockAt) {
       rs.locked = false
       st.events.push({ type: 'unlock', region: r.id })
-    }
-    const banAt = c.banBase - c.banOpenness * st.world.regions[r.id].openness
-    if (!rs.locked && !rs.banned && rs.s > banAt) {
-      rs.banned = true
-      st.events.push({ type: 'ban', region: r.id })
-    } else if (rs.banned && rs.s < c.unbanAt) {
-      rs.banned = false
-      st.events.push({ type: 'unban', region: r.id })
     }
   }
 }

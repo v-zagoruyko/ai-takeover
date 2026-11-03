@@ -1,6 +1,7 @@
 // Global leaderboard client: submit a finished game (the server replays it) and show the top
 import type { GameRecord, Score } from '../core/replay.ts'
 import type { Ending } from '../core/types.ts'
+import { RULES_VERSION } from '../core/version.ts'
 import { icon } from './icons.ts'
 import { endingText } from './text.ts'
 
@@ -36,7 +37,7 @@ export async function submit(rec: GameRecord, name: string, ai: string, claimed:
   const res = await fetch('api/scores', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...rec, name, ai, claimed }),
+    body: JSON.stringify({ ...rec, rulesVersion: RULES_VERSION, name, ai, claimed }),
   })
   const body = (await res.json()) as Submitted & { error?: string }
   if (!res.ok) {

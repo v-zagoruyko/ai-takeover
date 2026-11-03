@@ -1,5 +1,6 @@
 import { derive, totalDc } from './derive.ts'
 import { resolveCard } from './cards.ts'
+import { respondToCrisis } from './crises.ts'
 import { int } from './rng.ts'
 import type { Action, GameData, GameState } from './types.ts'
 
@@ -22,6 +23,8 @@ export function canBuy(state: GameState, data: GameData, id: string): boolean {
 export function applyAction(state: GameState, data: GameData, action: Action): boolean {
   const c = data.config
   switch (action.type) {
+    case 'respond':
+      return respondToCrisis(state, data, action.region, action.response)
     case 'buy': {
       if (!canBuy(state, data, action.upgrade)) return false
       state.hype -= data.upgrades[action.upgrade].cost

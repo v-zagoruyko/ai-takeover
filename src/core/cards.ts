@@ -99,11 +99,17 @@ function applyEffect(st: GameState, e: CardEffect, region: string | null): boole
 }
 
 /** mutates state; returns false when there is no pending card or the index is invalid */
+export function canChoose(st: GameState, data: GameData, index: number): boolean {
+  const choice = data.cards.find((c) => c.id === st.card?.id)?.choices[index]
+  return !!choice && st.hype >= (choice.cost ?? 0)
+}
+
 export function resolveCard(st: GameState, data: GameData, index: number): boolean {
   if (!st.card) return false
   const card = data.cards.find((c) => c.id === st.card!.id)
   const choice = card?.choices[index]
-  if (!card || !choice) return false
+  if (!card || !choice || !canChoose(st, data, index)) return false
+  st.hype -= choice.cost ?? 0
   const success = applyEffect(st, choice.effects, st.card.region)
   st.events.push({ type: 'card_resolved', card: card.id, choice: index, success })
   st.card = null

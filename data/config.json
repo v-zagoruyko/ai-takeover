@@ -14,7 +14,7 @@
   "kEnergy": 0.01,
   "energySafe": 0.8,
   "kDecay": 0.003,
-  "banBase": 0.6,
+  "banBase": 0.5,
   "banOpenness": 0.2,
   "unbanAt": 0.3,
   "protestAt": 0.4,

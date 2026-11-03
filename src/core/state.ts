@@ -16,9 +16,11 @@ export function createState(data: GameData, opts: NewGame): GameState {
   const c = data.config
   const regions: Record<string, RegionState> = {}
   for (const r of data.regions) {
-    regions[r.id] = { a: r.id === start.id ? c.startA : 0, d: 0, s: 0, banned: false, locked: false, dc: 0, trend: 1 }
+    regions[r.id] = { a: r.id === start.id ? c.startA : 0, d: 0, s: 0, banned: false, locked: false, dc: 0, trend: 1,
+      crisis: { phase: 'calm', until: 0, conceded: false, lastResult: null } }
   }
   const state: GameState = {
+    operation: null,
     tick: 0,
     rng: opts.seed >>> 0,
     hype: c.startHype,

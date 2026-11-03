@@ -323,7 +323,7 @@ export class MapScene extends Phaser.Scene {
       const cap = state.world.regions[r.id].energy
       v.power.set(rs.dc, gridLoad(rs.dc, dv), cap, this.data_.config.energySafe * cap, selected === r.id)
 
-      const marks = [rs.locked ? '🔒' : '', rs.banned ? '⛔' : ''].filter(Boolean).join(' ')
+      const marks = [rs.locked ? '🔒' : '', rs.banned ? '⛔' : '', rs.crisis.phase === 'warning' ? '⚠' : rs.crisis.phase === 'restricted' ? '!' : ''].filter(Boolean).join(' ')
       const stats = closed ? 'закрыто' : rs.a > 0.005 ? pct(rs.a) : ''
       v.label.setText([regionNames[r.id] ?? r.name, [stats, marks].filter(Boolean).join('  ')].filter(Boolean).join('\n'))
       v.label.setColor(closed ? '#5b6378' : rs.locked ? '#ffd166' : '#e8ecf4')
