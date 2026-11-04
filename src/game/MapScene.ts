@@ -3,6 +3,7 @@ import mapJson from '../../data/map.json' with { type: 'json' }
 import { gridLoad, type Derived } from '../core/derive.ts'
 import type { GameData, GameEvent, GameState } from '../core/types.ts'
 import { Cables, glitch, makeFxTextures, PowerMarker, RegionNetwork, Watcher, type Tone } from './fx.ts'
+import { LivingWorld } from './livingWorld.ts'
 import { pct } from './panels.ts'
 import { regionNames } from './text.ts'
 
@@ -95,6 +96,7 @@ export class MapScene extends Phaser.Scene {
   private dragged = false
   private lastSfx = new Map<Sfx, number>()
   private cables!: Cables
+  private life!: LivingWorld
   muted = localStorage.getItem(MUTE_KEY) === '1'
 
   constructor(host: SceneHost, data: GameData) {
@@ -113,6 +115,7 @@ export class MapScene extends Phaser.Scene {
     makeFxTextures(this)
     this.drawBackground()
     this.cables = new Cables(this, this.data_.links, MAP.anchors)
+    this.life = new LivingWorld(this)
     this.drawRegions()
     for (const [key, tint] of Object.entries({ gold: COLORS.lock, red: COLORS.heat, cyan: 0x2ed6c4, purple: 0xb06cff })) {
       this.bursts[key] = this.add
@@ -210,6 +213,7 @@ export class MapScene extends Phaser.Scene {
         .setAlpha(0.85)
         .setResolution(Math.max(2, window.devicePixelRatio))
 
+      this.life.addRegion(r.id, polys, MAP.anchors[r.id], label)
       const net = new RegionNetwork(this, polys, bounds, MAP.anchors[r.id])
       this.regions.set(r.id, {
         id: r.id,
@@ -297,6 +301,7 @@ export class MapScene extends Phaser.Scene {
       v.watcher.update(t, this.cameras.main.zoom)
       v.power.update(v.label.x, v.label.y + v.label.displayHeight / 2, t, delta, this.cameras.main.zoom)
     }
+    this.life.update(delta, this.cameras.main.zoom)
     this.cables.update(delta)
     for (const b of this.bubbles.values()) b.setScale(inv * (b.getData('base') as number))
   }
@@ -328,6 +333,7 @@ export class MapScene extends Phaser.Scene {
       v.label.setText([regionNames[r.id] ?? r.name, [stats, marks].filter(Boolean).join('  ')].filter(Boolean).join('\n'))
       v.label.setColor(closed ? '#5b6378' : rs.locked ? '#ffd166' : '#e8ecf4')
     }
+    this.life.setState(state, dv, this.data_)
     this.syncBubbles(state)
   }
 
