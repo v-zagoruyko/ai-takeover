@@ -41,6 +41,7 @@ export function renderTop(v: View): string {
     .map((s) => `<button data-speed="${s}" class="${v.speed === s ? 'on' : ''}">${s === 0 ? '❚❚' : `×${s}`}</button>`)
     .join('')
   const alerts = [
+    state.finale ? '<div class="finale-badge">Последняя глава · время остановлено</div>' : '',
     state.audit.warned ? `<div class="alert">${icon('audit')}Аудит через ${state.audit.at - state.tick} · риск провала ${pct(auditRisk(v.dv))}</div>` : '',
     state.shutdown.active
       ? `<div class="alert">${icon('power')}Отключения: ${data.config.shutdownDuration - (state.tick - state.shutdown.startedAt)} дн. — удержи 35%</div>`
@@ -57,7 +58,7 @@ export function renderTop(v: View): string {
       <div class="hype" data-tip="hype">${icon('coins')}${Math.floor(state.hype)}</div>
       <div class="world-ic" data-tip="world">${icon('globe')}Мир</div>
     </div>
-    ${meter({ ic: 'target', label: 'Под контролем', value: worldL(state, data), tone: 'goal', tip: 'goal', mark: data.config.winL, markLabel: 'победа', wide: true })}
+    ${meter({ ic: 'target', label: 'Под контролем', value: worldL(state, data), tone: 'goal', tip: 'goal', mark: data.config.winL, markLabel: 'финальная глава', wide: true })}
     ${meter({ ic: 'users', label: 'Внедрение', value: worldA(state, data), tone: 'adoption', tip: 'adoption' })}
     ${meter({ ic: 'eye', label: 'Подозрение', value: avgSuspicion(state, data), tone: 'suspicion', tip: 'suspicion' })}
     ${investors}

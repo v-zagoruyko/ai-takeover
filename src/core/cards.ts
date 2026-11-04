@@ -1,3 +1,5 @@
+import { settleFinaleCandidate } from './finale.ts'
+import { eventSnapshot, eventChanges } from './event-deltas.ts'
 import { totalDc } from './derive.ts'
 import { int, next } from './rng.ts'
 import { avgSuspicion, worldA, worldL } from './state.ts'
@@ -109,13 +111,16 @@ export function resolveCard(st: GameState, data: GameData, index: number): boole
   const card = data.cards.find((c) => c.id === st.card!.id)
   const choice = card?.choices[index]
   if (!card || !choice || !canChoose(st, data, index)) return false
+  const before = eventSnapshot(st, data)
+  const region = st.card.region
   st.hype -= choice.cost ?? 0
   const success = applyEffect(st, choice.effects, st.card.region)
-  st.events.push({ type: 'card_resolved', card: card.id, choice: index, success })
+  st.events.push({ type: 'card_resolved', card: card.id, choice: index, success, region, changes: eventChanges(before, st, data) })
   st.card = null
   const c = data.config
   st.nextCardAt = st.shutdown.active
     ? st.tick + int(st, c.shutdownCardMin, c.shutdownCardMax)
     : st.tick + Math.round(int(st, c.cardMin, c.cardMax) * (isLate(st, data) ? c.lateCardMul : 1))
+  settleFinaleCandidate(st, data)
   return true
 }

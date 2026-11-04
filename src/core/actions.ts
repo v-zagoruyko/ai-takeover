@@ -1,3 +1,4 @@
+import { resolveFinaleChoice } from './finale.ts'
 import { derive, totalDc } from './derive.ts'
 import { resolveCard } from './cards.ts'
 import { respondToCrisis } from './crises.ts'
@@ -21,6 +22,9 @@ export function canBuy(state: GameState, data: GameData, id: string): boolean {
 
 /** mutates state; invalid actions are ignored and return false */
 export function applyAction(state: GameState, data: GameData, action: Action): boolean {
+  if (state.outcome) return false
+  if (action.type === 'finale_choose') return resolveFinaleChoice(state, data, action.choice)
+  if (state.finale || (state.finaleCandidate && state.card && action.type !== 'choose')) return false
   const c = data.config
   switch (action.type) {
     case 'respond':

@@ -20,6 +20,10 @@ export function createState(data: GameData, opts: NewGame): GameState {
       crisis: { phase: 'calm', until: 0, conceded: false, lastResult: null } }
   }
   const state: GameState = {
+    finale: null,
+    finaleWarned: false,
+    finaleCandidate: null,
+    history: { concessions: 0, coercion: 0, exposures: 0 },
     operation: null,
     tick: 0,
     rng: opts.seed >>> 0,

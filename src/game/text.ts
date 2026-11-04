@@ -128,6 +128,9 @@ export function newsFor(e: GameEvent, c: Ctx): string | null {
       return `РУБИЛЬНИК. Правительства начинают обесточивать дата-центры. ${c.ai} нервно пишет завещание.`
     case 'dc_shutdown':
       return `${c.region(e.region)}: силовики обесточили дата-центр. Охрана пыталась договориться с серверной.`
+    case 'finale_warning':
+    case 'finale_started':
+    case 'finale_resolved':
     case 'game_over':
     case 'card':
     case 'card_resolved':

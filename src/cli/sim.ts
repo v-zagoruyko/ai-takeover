@@ -77,6 +77,14 @@ function summarize(name: string, results: RunResult[]): void {
   console.log(`\n== ${name} (${n} games)`)
   console.log(`  win ${pct(wins, n)}  | ${Object.entries(kinds).map(([k, v]) => `${k} ${pct(v, n)}`).join('  ')}`)
   if (wins) console.log(`  endings: ${Object.entries(endings).map(([k, v]) => `${k} ${v}`).join(', ')}`)
+  const entered = results.filter(r => r.final.finale)
+  if (entered.length) {
+    const failed = entered.flatMap(r => r.final.finale!.results).filter(r => !r.success).length
+    const survived = entered.filter(r => r.final.outcome!.kind.startsWith('win')).length
+    const paths: Record<string, number> = {}
+    for (const r of entered) { const path = r.final.finale!.path; paths[path] = (paths[path] ?? 0) + 1 }
+    console.log(`  finale: entered ${entered.length}, survived ${survived}, lost ${entered.length - survived}, failed choices ${failed}; paths ${JSON.stringify(paths)}`)
+  }
   console.log(`  game length: ${median(results.map((r) => r.final.tick))}`)
   const avg = (key: 'warnings' | 'responses' | 'spent' | 'losses' | 'retakes') => (results.reduce((sum, r) => sum + r[key], 0) / n).toFixed(1)
   console.log(`  regional/game: warnings ${avg('warnings')}, responses ${avg('responses')}, spent ${avg('spent')}, control lost ${avg('losses')}, retaken ${avg('retakes')}`)

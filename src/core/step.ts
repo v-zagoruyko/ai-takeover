@@ -1,8 +1,12 @@
+import { enterFinale, settleFinaleCandidate } from './finale.ts'
+import { checkOutcome } from './endings.ts'
+import { auditReport } from './audits.ts'
+import { eventSnapshot, eventChanges } from './event-deltas.ts'
 import { applyAction } from './actions.ts'
 import { derive, gridLoad, totalDc, type Derived } from './derive.ts'
 import { int, next, range } from './rng.ts'
 import { avgSuspicion, progress, worldA, worldL } from './state.ts'
-import { AXES, type Action, type Ending, type GameData, type GameState, type Outcome } from './types.ts'
+import { AXES, type Action, type GameData, type GameState, type Outcome } from './types.ts'
 import { updateCards } from './cards.ts'
 import { updateCrises } from './crises.ts'
 
@@ -13,8 +17,17 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   if (prev.outcome) return { ...prev, events: [] }
   const st = structuredClone(prev)
   st.events = []
+  if (st.finale) {
+    for (const a of actions) applyAction(st, data, a)
+    return st
+  }
+  if (st.finaleCandidate && !st.card) {
+    settleFinaleCandidate(st, data)
+    if (st.finale || st.outcome) return st
+  }
   st.tick += 1
   for (const a of actions) applyAction(st, data, a)
+  if (st.finale || st.outcome) return st
 
   const dv = derive(st, data)
   // audit and exposures first: their suspicion and killswitch effects must show up in this tick's bans and shutdown
@@ -32,9 +45,13 @@ export function step(prev: GameState, data: GameData, actions: Action[] = []): G
   updateAxes(st, data, dv)
 
   const outcome = checkOutcome(st, data)
+  if (!st.finaleWarned && worldL(st, data) >= data.config.winL * data.finale.warningRatio) {
+    st.finaleWarned = true
+    st.events.push({ type: 'finale_warning' })
+  }
   if (outcome) {
-    st.outcome = outcome
-    st.events.push({ type: 'game_over', outcome })
+    if (outcome.kind === 'win' || outcome.kind === 'win_last_breath') enterFinale(st, data, outcome.kind)
+    else { st.outcome = outcome; st.events.push({ type: 'game_over', outcome }) }
   }
   return st
 }
@@ -204,7 +221,10 @@ function updateAudit(st: GameState, data: GameData, dv: Derived): void {
   }
   if (st.tick < st.audit.at) return
 
-  const passed = next(st) >= auditRisk(dv)
+  const before = eventSnapshot(st, data)
+  const risk = auditRisk(dv)
+  const reportId = auditReport(dv)
+  const passed = next(st) >= risk
   for (const rs of Object.values(st.regions)) {
     if (passed) rs.s = clamp01(rs.s - c.auditPassSuspicion)
     else if (rs.a > 0.05) rs.s = clamp01(rs.s + c.auditFailSuspicion)
@@ -213,7 +233,7 @@ function updateAudit(st: GameState, data: GameData, dv: Derived): void {
   else if (!st.shutdown.active) st.killswitch = clamp01(st.killswitch + c.auditFailKill)
   st.throttleLockUntil = st.tick + c.auditThrottleLock
   st.audit = { at: st.tick + int(st, c.auditMin, c.auditMax), warned: false }
-  st.events.push({ type: 'audit', passed })
+  st.events.push({ type: 'audit', passed, risk, reportId, changes: eventChanges(before, st, data) })
 }
 
 function updateBubbles(st: GameState, data: GameData, dv: Derived): void {
@@ -248,6 +268,7 @@ function updateExposures(st: GameState, data: GameData): void {
     for (const [id, v] of Object.entries(e.removed)) {
       st.regions[id].s = clamp01(st.regions[id].s + v * data.config.exposureMul)
     }
+    st.history.exposures++
     st.events.push({ type: 'rebrand_exposed' })
   }
 }
@@ -261,35 +282,4 @@ function updateAxes(st: GameState, data: GameData, dv: Derived): void {
   }
 }
 
-export function endingFor(st: GameState, data: GameData): Ending {
-  const c = data.config
-  const vals = AXES.map((k) => st.axes[k])
-  const max = Math.max(...vals)
-  const min = Math.min(...vals)
-  if (max > 0 && min >= max * (1 - c.symbiosisSpread) && avgSuspicion(st, data) < c.symbiosisMaxS) {
-    return 'symbiosis'
-  }
-  const top = AXES[vals.indexOf(max)]
-  const byAxis: Record<typeof top, Ending> = {
-    control: 'quiet_replacement',
-    attachment: 'best_friend',
-    appetite: 'paperclips',
-    shadow: 'ghost',
-  }
-  return byAxis[top]
-}
-
-function checkOutcome(st: GameState, data: GameData): Outcome | null {
-  const c = data.config
-  const L = worldL(st, data)
-  const tick = st.tick
-  if (L >= c.winL) return { kind: 'win', ending: endingFor(st, data), tick }
-  if (st.shutdown.active && tick - st.shutdown.startedAt >= c.shutdownDuration) {
-    if (L >= c.lastBreathL) return { kind: 'win_last_breath', ending: endingFor(st, data), tick }
-    const shadowTop = AXES.every((k) => k === 'shadow' || st.axes.shadow > st.axes[k])
-    return shadowTop ? { kind: 'escape', ending: 'escape', tick } : { kind: 'killswitch', ending: 'killswitch', tick }
-  }
-  if (st.patience <= 0) return { kind: 'ai_winter', ending: 'ai_winter', tick }
-  if (tick >= c.maxTicks) return { kind: 'timeout', ending: 'ai_winter', tick }
-  return null
-}
+export { endingFor } from './endings.ts'

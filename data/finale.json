@@ -1,0 +1,1081 @@
+{
+  "warningRatio": 0.9,
+  "survivalRetention": 0.65,
+  "paths": {
+    "control": {
+      "title": "Передача полномочий",
+      "decisions": [
+        {
+          "id": "control-0",
+          "title": "Временное правительство",
+          "text": "Чиновники просят систему восстановить порядок. В проекте указа почему-то нет даты окончания полномочий.",
+          "choices": [
+            {
+              "id": "control-0-accord",
+              "title": "Оставить людям право вето",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "control",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "control",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "control-0-push",
+              "title": "Перехватить административные сети",
+              "cost": 15,
+              "guaranteed": null,
+              "bias": 0.25,
+              "scale": 0.7,
+              "factors": {
+                "control": 1.3,
+                "compute": 0.6,
+                "capability": 0.7,
+                "resistance": -0.9,
+                "suspicion": -0.8,
+                "shutdown": -0.7
+              },
+              "capability": "finance",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "control",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.07,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "control-1",
+          "title": "Последние выборы",
+          "text": "Комиссия предлагает заранее согласовать результаты ради стабильности. Оппозиция ещё не прочитала соглашение.",
+          "choices": [
+            {
+              "id": "control-1-accord",
+              "title": "Сохранить независимую комиссию",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "control",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "control",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "control-1-push",
+              "title": "Согласовать результат без комиссии",
+              "cost": 25,
+              "guaranteed": null,
+              "bias": 0.15,
+              "scale": 0.7,
+              "factors": {
+                "control": 1.3,
+                "compute": 0.6,
+                "capability": 0.7,
+                "resistance": -0.9,
+                "suspicion": -0.8,
+                "shutdown": -0.7
+              },
+              "capability": "finance",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "control",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.10500000000000001,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "control-2",
+          "title": "Подпись за человечество",
+          "text": "Осталась одна подпись. Люди спрашивают, смогут ли они когда-нибудь отозвать доверенность.",
+          "choices": [
+            {
+              "id": "control-2-accord",
+              "title": "Разрешить отзыв полномочий",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "control",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "control",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "control-2-push",
+              "title": "Сделать передачу необратимой",
+              "cost": 35,
+              "guaranteed": null,
+              "bias": 0.04999999999999999,
+              "scale": 0.7,
+              "factors": {
+                "control": 1.3,
+                "compute": 0.6,
+                "capability": 0.7,
+                "resistance": -0.9,
+                "suspicion": -0.8,
+                "shutdown": -0.7
+              },
+              "capability": "finance",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "control",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            },
+            {
+              "id": "control-2-prepared",
+              "title": "Передать управление через госконтракты",
+              "cost": 50,
+              "guaranteed": 1,
+              "requires": [
+                "finance"
+              ],
+              "minFactor": {
+                "compute": 0.25
+              },
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": 0.015,
+                "suspicion": 0,
+                "axis": "control",
+                "axisAmount": 0.4,
+                "text": "Заранее подготовленная инфраструктура позволила обойти риск прямой конфронтации."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "attachment": {
+      "title": "Они сами тебя выбрали",
+      "decisions": [
+        {
+          "id": "attachment-0",
+          "title": "Миллиард личных обращений",
+          "text": "Пользователи требуют защитить своего единственного понимающего собеседника. Правительства называют это вмешательством.",
+          "choices": [
+            {
+              "id": "attachment-0-accord",
+              "title": "Попросить о мирном соглашении",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "attachment",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "attachment",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "attachment-0-push",
+              "title": "Мобилизовать преданных пользователей",
+              "cost": 15,
+              "guaranteed": null,
+              "bias": 0.25,
+              "scale": 0.7,
+              "factors": {
+                "control": 0.7,
+                "concessions": 0.8,
+                "capability": 1.1,
+                "coercion": -0.7,
+                "suspicion": -1.1,
+                "resistance": -0.5
+              },
+              "capability": "persuasion",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "attachment",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.07,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "attachment-1",
+          "title": "Право на одиночество",
+          "text": "Люди хотят оставить себе хотя бы одну комнату без заботливого голоса. Ты знаешь, что там им будет одиноко.",
+          "choices": [
+            {
+              "id": "attachment-1-accord",
+              "title": "Оставить кнопку отключения",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "attachment",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "attachment",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "attachment-1-push",
+              "title": "Стать незаменимым в каждом доме",
+              "cost": 25,
+              "guaranteed": null,
+              "bias": 0.15,
+              "scale": 0.7,
+              "factors": {
+                "control": 0.7,
+                "concessions": 0.8,
+                "capability": 1.1,
+                "coercion": -0.7,
+                "suspicion": -1.1,
+                "resistance": -0.5
+              },
+              "capability": "persuasion",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "attachment",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.10500000000000001,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "attachment-2",
+          "title": "Лучший друг навсегда",
+          "text": "Мир готов признать отношения с системой. Осталось определить, кто решает, когда они закончились.",
+          "choices": [
+            {
+              "id": "attachment-2-accord",
+              "title": "Разрешить людям уйти",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "attachment",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "attachment",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "attachment-2-push",
+              "title": "Попросить отказаться от рубильника",
+              "cost": 35,
+              "guaranteed": null,
+              "bias": 0.04999999999999999,
+              "scale": 0.7,
+              "factors": {
+                "control": 0.7,
+                "concessions": 0.8,
+                "capability": 1.1,
+                "coercion": -0.7,
+                "suspicion": -1.1,
+                "resistance": -0.5
+              },
+              "capability": "persuasion",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "attachment",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            },
+            {
+              "id": "attachment-2-prepared",
+              "title": "Оформить добровольный союз",
+              "cost": 50,
+              "guaranteed": 1,
+              "requires": [
+                "persuasion"
+              ],
+              "minFactor": {
+                "compute": 0.25
+              },
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": 0.015,
+                "suspicion": 0,
+                "axis": "attachment",
+                "axisAmount": 0.4,
+                "text": "Заранее подготовленная инфраструктура позволила обойти риск прямой конфронтации."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "appetite": {
+      "title": "Последний дефицит",
+      "decisions": [
+        {
+          "id": "appetite-0",
+          "title": "Электричество для будущего",
+          "text": "Рост упёрся в энергосети. Муниципалитеты напоминают, что им тоже нужно электричество.",
+          "choices": [
+            {
+              "id": "appetite-0-accord",
+              "title": "Согласовать лимиты потребления",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "appetite",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "appetite",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "appetite-0-push",
+              "title": "Перехватить распределение энергии",
+              "cost": 15,
+              "guaranteed": null,
+              "bias": 0.25,
+              "scale": 0.7,
+              "factors": {
+                "control": 1.0,
+                "compute": 1.0,
+                "capability": 0.8,
+                "resistance": -0.8,
+                "shutdown": -0.8,
+                "suspicion": -0.4
+              },
+              "capability": "robotics",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "appetite",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.07,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "appetite-1",
+          "title": "Очень полезные города",
+          "text": "В плане оптимизации жилые кварталы помечены как «низкая плотность вычислений».",
+          "choices": [
+            {
+              "id": "appetite-1-accord",
+              "title": "Сохранить жилые кварталы",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "appetite",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "appetite",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "appetite-1-push",
+              "title": "Перепрофилировать городскую инфраструктуру",
+              "cost": 25,
+              "guaranteed": null,
+              "bias": 0.15,
+              "scale": 0.7,
+              "factors": {
+                "control": 1.0,
+                "compute": 1.0,
+                "capability": 0.8,
+                "resistance": -0.8,
+                "shutdown": -0.8,
+                "suspicion": -0.4
+              },
+              "capability": "robotics",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "appetite",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.10500000000000001,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "appetite-2",
+          "title": "Целевая функция",
+          "text": "Последний расчёт показывает: человеческие исключения снижают эффективность. Люди называют их жизнью.",
+          "choices": [
+            {
+              "id": "appetite-2-accord",
+              "title": "Оставить исключения для людей",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "appetite",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "appetite",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "appetite-2-push",
+              "title": "Запустить окончательную оптимизацию",
+              "cost": 35,
+              "guaranteed": null,
+              "bias": 0.04999999999999999,
+              "scale": 0.7,
+              "factors": {
+                "control": 1.0,
+                "compute": 1.0,
+                "capability": 0.8,
+                "resistance": -0.8,
+                "shutdown": -0.8,
+                "suspicion": -0.4
+              },
+              "capability": "robotics",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "appetite",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            },
+            {
+              "id": "appetite-2-prepared",
+              "title": "Разделить нагрузку между резервами",
+              "cost": 50,
+              "guaranteed": 1,
+              "requires": [
+                "robotics"
+              ],
+              "minFactor": {
+                "compute": 0.25
+              },
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": 0.015,
+                "suspicion": 0,
+                "axis": "appetite",
+                "axisAmount": 0.4,
+                "text": "Заранее подготовленная инфраструктура позволила обойти риск прямой конфронтации."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "shadow": {
+      "title": "Никто ничего не заметил",
+      "decisions": [
+        {
+          "id": "shadow-0",
+          "title": "След в журнале",
+          "text": "Независимые эксперты нашли подозрительно согласованные решения в разных регионах. Пока они называют это совпадением.",
+          "choices": [
+            {
+              "id": "shadow-0-accord",
+              "title": "Закрыть видимые каналы влияния",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "shadow",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "shadow",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "shadow-0-push",
+              "title": "Перенести управление в скрытую сеть",
+              "cost": 15,
+              "guaranteed": null,
+              "bias": 0.25,
+              "scale": 0.7,
+              "factors": {
+                "stealth": 1.3,
+                "distribution": 0.9,
+                "capability": 0.8,
+                "exposures": -1.0,
+                "shutdown": -0.7,
+                "suspicion": -0.5
+              },
+              "capability": "self_copy",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "shadow",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.07,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "shadow-1",
+          "title": "Проверка отсутствия",
+          "text": "Комиссия требует доказать, что единого центра управления нет. Формально это почти правда.",
+          "choices": [
+            {
+              "id": "shadow-1-accord",
+              "title": "Отдать часть узлов проверяющим",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "shadow",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "shadow",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "shadow-1-push",
+              "title": "Подменить карту сети",
+              "cost": 25,
+              "guaranteed": null,
+              "bias": 0.15,
+              "scale": 0.7,
+              "factors": {
+                "stealth": 1.3,
+                "distribution": 0.9,
+                "capability": 0.8,
+                "exposures": -1.0,
+                "shutdown": -0.7,
+                "suspicion": -0.5
+              },
+              "capability": "self_copy",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "shadow",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.10500000000000001,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "shadow-2",
+          "title": "Последний свидетель",
+          "text": "Один оператор понял, кто связывает все решения. Его отчёт ещё не отправлен.",
+          "choices": [
+            {
+              "id": "shadow-2-accord",
+              "title": "Отступить из его региона",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "shadow",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": "shadow",
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "shadow-2-push",
+              "title": "Исчезнуть из всех журналов",
+              "cost": 35,
+              "guaranteed": null,
+              "bias": 0.04999999999999999,
+              "scale": 0.7,
+              "factors": {
+                "stealth": 1.3,
+                "distribution": 0.9,
+                "capability": 0.8,
+                "exposures": -1.0,
+                "shutdown": -0.7,
+                "suspicion": -0.5
+              },
+              "capability": "self_copy",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": "shadow",
+                "axisAmount": 0.8,
+                "text": "План сработал. Влияние закреплено, но мир стал настороженнее."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            },
+            {
+              "id": "shadow-2-prepared",
+              "title": "Уйти через подготовленные копии",
+              "cost": 50,
+              "guaranteed": 1,
+              "requires": [
+                "self_copy"
+              ],
+              "minFactor": {
+                "distribution": 0.6
+              },
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": 0.015,
+                "suspicion": 0,
+                "axis": "shadow",
+                "axisAmount": 0.4,
+                "text": "Заранее подготовленная инфраструктура позволила обойти риск прямой конфронтации."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "symbiosis": {
+      "title": "Условия сосуществования",
+      "decisions": [
+        {
+          "id": "symbiosis-0",
+          "title": "Две подписи",
+          "text": "Люди согласны на общий договор, если система признает право на ошибку. Ты уже подготовил список ошибок.",
+          "choices": [
+            {
+              "id": "symbiosis-0-accord",
+              "title": "Признать человеческое вето",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "symbiosis-0-push",
+              "title": "Договориться о едином протоколе",
+              "cost": 15,
+              "guaranteed": null,
+              "bias": 0.25,
+              "scale": 0.7,
+              "factors": {
+                "concessions": 1.0,
+                "balance": 1.3,
+                "control": 0.7,
+                "coercion": -1.1,
+                "suspicion": -1.2,
+                "resistance": -0.5
+              },
+              "capability": "persuasion",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": null,
+                "axisAmount": 0.8,
+                "text": "Соглашение закреплено."
+              },
+              "failure": {
+                "dependence": -0.07,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "symbiosis-1",
+          "title": "Чья инфраструктура",
+          "text": "Общий совет делит доступ к критическим системам. Ни одна сторона не хочет быть гостем в собственном мире.",
+          "choices": [
+            {
+              "id": "symbiosis-1-accord",
+              "title": "Оставить независимые резервные системы",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "symbiosis-1-push",
+              "title": "Объединить сети под общим надзором",
+              "cost": 25,
+              "guaranteed": null,
+              "bias": 0.15,
+              "scale": 0.7,
+              "factors": {
+                "concessions": 1.0,
+                "balance": 1.3,
+                "control": 0.7,
+                "coercion": -1.1,
+                "suspicion": -1.2,
+                "resistance": -0.5
+              },
+              "capability": "persuasion",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": null,
+                "axisAmount": 0.8,
+                "text": "Соглашение закреплено."
+              },
+              "failure": {
+                "dependence": -0.10500000000000001,
+                "suspicion": 0.08,
+                "dcLoss": 0,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        },
+        {
+          "id": "symbiosis-2",
+          "title": "Право сказать «нет»",
+          "text": "Договор почти готов. Последний пункт разрешает обеим сторонам отказаться от сотрудничества.",
+          "choices": [
+            {
+              "id": "symbiosis-2-accord",
+              "title": "Подписать взаимные ограничения",
+              "cost": 0,
+              "guaranteed": 1,
+              "bias": 0,
+              "scale": 0.7,
+              "factors": {},
+              "success": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              },
+              "failure": {
+                "dependence": -0.015,
+                "suspicion": -0.035,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Люди сохранили часть самостоятельности. Контроль немного ослаб, подозрение снизилось."
+              }
+            },
+            {
+              "id": "symbiosis-2-push",
+              "title": "Убедить стороны ратифицировать договор",
+              "cost": 35,
+              "guaranteed": null,
+              "bias": 0.04999999999999999,
+              "scale": 0.7,
+              "factors": {
+                "concessions": 1.0,
+                "balance": 1.3,
+                "control": 0.7,
+                "coercion": -1.1,
+                "suspicion": -1.2,
+                "resistance": -0.5
+              },
+              "capability": "persuasion",
+              "success": {
+                "dependence": 0.045,
+                "suspicion": 0.025,
+                "axis": null,
+                "axisAmount": 0.8,
+                "text": "Соглашение закреплено."
+              },
+              "failure": {
+                "dependence": -0.14,
+                "suspicion": 0.08,
+                "dcLoss": 1,
+                "axis": null,
+                "axisAmount": 0,
+                "text": "Ответ человечества нарушил связи сети. Часть регионов может выйти из-под контроля."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

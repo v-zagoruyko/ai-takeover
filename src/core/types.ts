@@ -232,7 +232,10 @@ export interface RegionParams {
   energy: number
 }
 
+import type { FinaleRules, FinaleState } from './finale-types.ts'
+
 export interface GameData {
+  finale: FinaleRules
   crises: CrisisRules
   config: Config
   regions: Region[]
@@ -287,22 +290,30 @@ export interface Outcome {
   tick: number
 }
 
+export interface EventDelta { metric: string; before: number; after: number; region?: string }
+
 export type GameEvent =
+  | { type: 'finale_warning' | 'finale_started' }
+  | { type: 'finale_resolved'; text: string; success: boolean; changes: EventDelta[] }
   | { type: 'crisis_warning' | 'crisis_restricted' | 'crisis_recovered'; region: string }
   | { type: 'operation_done'; region: string; result: CrisisResult }
   | { type: 'operation_started'; region: string; response: CrisisResponse; cost: number }
   | { type: 'ban' | 'unban' | 'lock' | 'unlock' | 'dc_shutdown'; region: string }
   | { type: 'funding_round'; milestone: number; hype: number }
   | { type: 'audit_warning'; at: number }
-  | { type: 'audit'; passed: boolean }
+  | { type: 'audit'; passed: boolean; risk: number; reportId: string; changes: EventDelta[] }
   | { type: 'rebrand'; mask: string }
   | { type: 'rebrand_exposed' }
   | { type: 'shutdown_started' }
   | { type: 'game_over'; outcome: Outcome }
   | { type: 'card'; card: string; region: string | null }
-  | { type: 'card_resolved'; card: string; choice: number; success: boolean }
+  | { type: 'card_resolved'; card: string; choice: number; success: boolean; region: string | null; changes: EventDelta[] }
 
 export interface GameState {
+  finale: FinaleState | null
+  finaleWarned: boolean
+  finaleCandidate: 'win' | 'win_last_breath' | null
+  history: { concessions: number; coercion: number; exposures: number }
   operation: { region: string; response: 'adapt' | 'persuade'; remaining: number; before: { a: number; d: number; s: number } } | null
   tick: number
   rng: number
@@ -339,6 +350,7 @@ export interface GameState {
 }
 
 export type Action =
+  | { type: 'finale_choose'; choice: string }
   | { type: 'respond'; region: string; response: CrisisResponse }
   | { type: 'buy'; upgrade: string }
   | { type: 'throttle'; upgrade: string }

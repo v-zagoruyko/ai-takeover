@@ -1,3 +1,4 @@
+import { finaleChoices } from '../core/finale.ts'
 import { canBuy, dcCost, rebrandCost } from '../core/actions.ts'
 import { derive } from '../core/derive.ts'
 import { next } from '../core/rng.ts'
@@ -232,3 +233,14 @@ const alternative = (order: string[]) => planBot({ order, popPoisoned: lowSuspic
 const productsFirst = balancedOrder.filter((id) => !['code', 'persuasion', 'finance', 'self_copy'].includes(id))
 bots.regional_no_caps = withCrisisResponse(alternative(productsFirst), 'concede')
 bots.regional_late_caps = withCrisisResponse(alternative([...productsFirst, 'code', 'persuasion', 'finance', 'self_copy']), 'active')
+
+// Finale choices are still regular logged actions. Bot deliberation never consumes game RNG.
+for (const [name, bot] of Object.entries(bots)) {
+  bots[name] = (state, data, mem) => {
+    if (!state.finale || state.outcome) return bot(state, data, mem)
+    const choices = finaleChoices(state, data).filter(c => c.available)
+    const score = (c: typeof choices[number]) => c.probability * 4 - (1 - c.probability) * (name === 'caps_rush' ? 1 : 8) + (c.guaranteed === null ? 0.8 : 0) - c.cost * 0.005
+    const best = name === 'random' ? choices[Math.floor(next(mem) * choices.length)] : [...choices].sort((a,b) => score(b) - score(a))[0]
+    return best ? [{ type: 'finale_choose', choice: best.choiceId }] : []
+  }
+}

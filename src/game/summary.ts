@@ -1,4 +1,5 @@
 // End-of-game summary: stats are collected by the controller while playing, rendered once on game over
+import { escapeHtml } from './events.ts'
 import { avgSuspicion, worldA, worldL } from '../core/state.ts'
 import { AXES, type GameData, type GameEvent, type GameState, type Outcome } from '../core/types.ts'
 import { icon, type IconName } from './icons.ts'
@@ -59,7 +60,11 @@ export function recordTick(st: GameStats, state: GameState, data: GameData): voi
   const s = avgSuspicion(state, data)
   st.peakA = Math.max(st.peakA, a)
   st.peakS = Math.max(st.peakS, s)
-  if (state.tick % 10 === 0 || state.outcome) st.series.push({ t: state.tick, a, l: worldL(state, data), s, k: state.killswitch })
+  if (state.tick % 10 === 0 || state.outcome) {
+    const point = { t: state.tick, a, l: worldL(state, data), s, k: state.killswitch }
+    if (st.series.at(-1)?.t === state.tick) st.series[st.series.length - 1] = point
+    else st.series.push(point)
+  }
 }
 
 const MAX_MOMENTS = 10
@@ -150,7 +155,7 @@ function tip(o: Outcome, st: GameStats): string {
   switch (o.kind) {
     case 'killswitch':
     case 'escape':
-      return `Тебя слишком боялись: подозрение доходило до ${pct(st.peakS)}${st.auditsFailed ? `, провалено аудитов: ${st.auditsFailed}` : ''}. Приглушай способности перед аудитами, бери маскировку и лоббистов, а дата-центры ставь в регионах под контролем: их не отключат.`
+      return `Тебя слишком боялись: подозрение доходило до ${pct(st.peakS)}${st.auditsFailed ? `, провалено аудитов: ${st.auditsFailed}` : ''}. Приглушай способности перед аудитами, бери маскировку и лоббистов, а вычисления распределяй между регионами: волны отключений затрагивают и регионы под контролем.`
     case 'ai_winter':
     case 'timeout':
       return `Рост остановился, и инвесторы ушли (пик внедрения — ${pct(st.peakA)}). Покупай продукты раньше, лови пузыри и забирай регионы под контроль: после 25% инвесторы больше не нужны.`
@@ -162,6 +167,7 @@ function tip(o: Outcome, st: GameStats): string {
 const AXIS_NAMES = { control: 'Контроль', attachment: 'Привязанность', appetite: 'Аппетит', shadow: 'Тень' } as const
 
 export function renderSummary(state: GameState, data: GameData, st: GameStats, aiName: string, world: { title: string }[], scoreHtml = ''): string {
+  aiName = escapeHtml(aiName)
   const o = state.outcome!
   const won = o.kind === 'win' || o.kind === 'win_last_breath'
   const t = endingText[o.ending]
@@ -182,7 +188,7 @@ export function renderSummary(state: GameState, data: GameData, st: GameStats, a
     (k) => `<div class="axis"><span>${AXIS_NAMES[k]}</span><i style="width:${Math.round((state.axes[k] / max) * 100)}%"></i></div>`,
   ).join('')
   const moments = st.moments.length
-    ? `<ol class="moments">${st.moments.map((m) => `<li>${icon(m.icon)}<span>${m.text}</span><small>день ${m.t}</small></li>`).join('')}</ol>`
+    ? `<ol class="moments">${st.moments.map((m) => `<li>${icon(m.icon)}<span>${escapeHtml(m.text)}</span><small>день ${m.t}</small></li>`).join('')}</ol>`
     : '<p class="hint">Ничего примечательного не произошло. Подозрительно.</p>'
   return `<div class="card summary ${won ? 'won' : 'lost'}">
     <small>${kind} · день ${o.tick} · ${aiName}</small>

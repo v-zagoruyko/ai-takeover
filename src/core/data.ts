@@ -1,3 +1,6 @@
+import finale from '../../data/finale.json' with { type: 'json' }
+import { validateFinale } from './finale.ts'
+import type { FinaleRules } from './finale-types.ts'
 import cards from '../../data/cards.json' with { type: 'json' }
 import crises from '../../data/crises.json' with { type: 'json' }
 import config from '../../data/config.json' with { type: 'json' }
@@ -8,6 +11,7 @@ import upgrades from '../../data/upgrades.json' with { type: 'json' }
 import { ARCHETYPES, type Card, type Config, type CrisisRules, type GameData, type Mask, type Region, type Upgrade, type WorldModifier } from './types.ts'
 
 export interface RawData {
+  finale?: FinaleRules
   crises?: CrisisRules
   config: Config
   regions: Region[]
@@ -53,7 +57,10 @@ export function buildData(raw: RawData): GameData {
     if (rule.capability && ups[rule.capability]?.branch !== 'capabilities') throw new Error(`operation: unknown capability ${rule.capability}`)
     if (!Number.isFinite(rule.cost) || rule.cost < 0 || !Number.isFinite(rule.days) || rule.days < 0) throw new Error('operation: invalid cost or days')
   }
+  const finaleRules = raw.finale ?? finale as FinaleRules
+  validateFinale(finaleRules, ups)
   return {
+    finale: finaleRules,
     crises: crisisRules,
     config: raw.config,
     regions: regs,

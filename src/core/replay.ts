@@ -39,12 +39,22 @@ export function replay(data: GameData, rec: GameRecord): Replay {
   let i = 0
   while (!state.outcome) {
     while (i < rec.log.length && rec.log[i].t <= state.tick) {
-      if (rec.log[i].t === state.tick) applyAction(state, data, rec.log[i].a)
+      if (state.outcome) throw new Error('action after outcome')
+      if (rec.log[i].t === state.tick) {
+        const a = rec.log[i].a
+        const inFinale = !!state.finale
+        const ok = applyAction(state, data, a)
+        if (ok) trackPeaks(peaks, state, data)
+        if ((!ok || a.type !== 'finale_choose') && inFinale) throw new Error('invalid finale action')
+        if (!ok && a.type === 'finale_choose') throw new Error('invalid finale action')
+      }
       i++
     }
+    if (state.finale && !state.outcome) throw new Error('incomplete finale log')
     state = step(state, data, [])
     trackPeaks(peaks, state, data)
   }
+  if (i < rec.log.length) throw new Error('action after outcome')
   return { state, ...peaks }
 }
 

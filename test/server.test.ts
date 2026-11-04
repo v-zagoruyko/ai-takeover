@@ -5,12 +5,12 @@ import { bots } from '../src/bots/bots.ts'
 import { applyAction } from '../src/core/actions.ts'
 import { loadData } from '../src/core/data.ts'
 import { replay, scoreGame } from '../src/core/replay.ts'
-import { createState } from '../src/core/state.ts'
+import { createState, avgSuspicion } from '../src/core/state.ts'
 import { step } from '../src/core/step.ts'
 import type { Action } from '../src/core/types.ts'
 
 const data = loadData()
-const rulesVersion = 'regional-1'
+const rulesVersion = 'finale-1'
 
 function playLogged(seed: number) {
   const rec = { seed, startRegion: 'north_america', mask: 'assistant', log: [] as { t: number; a: Action }[] }
@@ -70,4 +70,64 @@ test('server: names are trimmed, single-spaced and stripped of control character
   assert.equal(cleanName('  Жора\u0000   Pro  '), 'Жора Pro')
   assert.equal(cleanName('a'.repeat(25)), null)
   assert.equal(cleanName(42), null)
+})
+
+function finaleRecord() {
+  const d = structuredClone(data)
+  d.config.lockAt = 0; d.config.unlockAt = 0
+  return { d, rec: { seed: 1, startRegion: 'north_america', mask: 'assistant', log: [] as { t: number; a: Action }[] } }
+}
+
+test('replay rejects a chapter with missing decisions instead of stalling', () => {
+  const { d, rec } = finaleRecord()
+  assert.throws(() => replay(d, rec), /incomplete finale/)
+})
+
+test('same-tick final actions replay exactly and extra actions after outcome are rejected', () => {
+  const { d, rec } = finaleRecord()
+  let s = step(createState(d, rec), d)
+  assert.ok(s.finale)
+  const mem = { rng: 1 }
+  for (let i = 0; i < 3; i++) {
+    const a = bots.balanced(s, d, mem)[0]
+    rec.log.push({ t: s.tick, a })
+    assert.ok(applyAction(s, d, a))
+  }
+  const result = replay(d, rec)
+  assert.deepEqual(result.state.outcome, s.outcome)
+  assert.equal(result.state.rng, s.rng)
+  assert.deepEqual(result.state.finale, s.finale)
+  const valid = verify({ ...rec, rulesVersion, name:'x', ai:'y', claimed:s.outcome }, d)
+  assert.ok(valid.ok)
+  rec.log.push({ t: s.tick, a: { type:'buy', upgrade:'chatbot' } })
+  assert.throws(() => replay(d, rec), /after outcome/)
+})
+
+test('server rejects incomplete or illegal finale logs with a finite response', () => {
+  const { d, rec } = finaleRecord()
+  const base = { ...rec, rulesVersion, name:'x', ai:'y', claimed:{kind:'win',tick:1} }
+  assert.equal(verify(base, d).ok, false)
+  assert.equal(verify({ ...base, log:[{t:1,a:{type:'finale_choose',choice:'unknown'}}] }, d).ok, false)
+  assert.equal(verify({ ...base, log:[{t:1,a:{type:'buy',upgrade:'chatbot'}}] }, d).ok, false)
+})
+
+test('replay tracks intermediate same-tick suspicion peaks in the chapter', () => {
+  const { d, rec } = finaleRecord()
+  d.config.startA = 0.8
+  // Fix a gamble to succeed without depending on a particular seed's draw.
+  for (const path of Object.values(d.finale.paths)) for (const decision of path.decisions) {
+    decision.choices[1].guaranteed = 1
+    decision.choices[1].success.suspicion = 0.5
+  }
+  let s = step(createState(d, rec), d)
+  s.hype = 100 // the actual replay has milestone funding as well
+  const choices = d.finale.paths[s.finale!.path].decisions
+  let expectedPeak = 0
+  for (let i=0;i<3;i++) {
+    const a: Action = { type:'finale_choose', choice:choices[i].choices[i===0 ? 1 : 0].id }
+    rec.log.push({t:s.tick,a}); applyAction(s,d,a)
+    expectedPeak = Math.max(expectedPeak, avgSuspicion(s,d))
+  }
+  const result = replay(d,rec)
+  assert.equal(result.peakS, expectedPeak)
 })

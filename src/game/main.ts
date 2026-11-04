@@ -1,4 +1,8 @@
 import Phaser from 'phaser'
+import { renderFinale } from './finale.ts'
+import { renderEnding } from './ending.ts'
+import { presentEvent, renderEvent, escapeHtml, type EventView } from './events.ts'
+import { NoticeQueue } from './notifications.ts'
 import { applyAction } from '../core/actions.ts'
 import { canChoose } from '../core/cards.ts'
 import { loadData } from '../core/data.ts'
@@ -12,7 +16,7 @@ import { icon } from './icons.ts'
 import { renderSideList, renderSideTop, renderTop, type Tab, type View } from './panels.ts'
 import { fetchTop, rememberPlayer, renderSubmitForm, renderTable, submit } from './leaderboard.ts'
 import { newStats, recordBubble, recordEvents, recordTick, renderSummary, summaryText } from './summary.ts'
-import { ambientNews, describeEffect, fillCard, hints, maskText, newsFor, regionNames, tips, type HintKey } from './text.ts'
+import { ambientNews, describeEffect, fillCard, hints, maskText, regionNames, tips, type HintKey } from './text.ts'
 
 const data = loadData()
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -34,7 +38,11 @@ let lastSpeed = 1
 let selected: string | null = null
 let aiName = ''
 let oldName = ''
-let news: string[] = []
+let news: EventView[] = []
+let feedFilter = 'all'
+let feedUnread = false
+const notices = new NoticeQueue<EventView>()
+const noticesEl = $('notices')
 let acc = 0
 let tab: Tab = 'products'
 let worldIntro = false
@@ -44,6 +52,8 @@ let record: GameRecord = { seed: 0, startRegion: '', mask: '', log: [] }
 // clicks on a modal that just appeared are ignored: players are often mid-click on map bubbles
 const ARM_MS = 900
 let armedAt = 0
+let endingTimer = 0
+let endingActive = false
 
 function view(): View {
   return { state: state!, data, dv: derive(state!, data), speed, selected, aiName, muted: scene.muted, tab }
@@ -70,14 +80,15 @@ function render(): void {
   vignetteEl.style.opacity = String(Math.min(0.85, state.killswitch ** 1.5 * 0.8 + (state.shutdown.active ? 0.25 : 0)))
   document.body.classList.toggle('shutdown', state.shutdown.active && !state.outcome)
   document.body.classList.toggle('kill-high', state.killswitch > 0.7 && !state.shutdown.active)
-  checkHints(v)
-  setHtml(newsEl, news.map((n) => `<p>${n}</p>`).join(''))
+  if (!state.finale) checkHints(v)
+  document.body.classList.toggle('finale-active', !!state.finale && !state.outcome)
+  renderNews()
   scene.setState(state, v.dv, selected)
 }
 
 function pushNews(text: string | null): void {
   if (!text) return
-  news = [`<b>День ${state!.tick}.</b> ${text}`, ...news].slice(0, 30)
+  addNews({ id: `ambient-${state!.tick}-${news.length}`, tick: state!.tick, kind: 'ambient', severity: 'info', title: 'Мир продолжает жить', body: text, changes: [] })
 }
 
 let toastTimer = 0
@@ -88,41 +99,54 @@ function toast(text: string, kind: 'good' | 'bad' | 'info' = 'info'): void {
   toastTimer = window.setTimeout(() => (toastEl.className = ''), 2200)
 }
 
+function addNews(v: EventView): void {
+  if (newsEl.scrollTop > 20) feedUnread = true
+  news = [v, ...news].slice(0, 200)
+}
+
+function renderNews(force = false): void {
+  $('news-new').hidden = !feedUnread
+  if (feedUnread && !force) return
+  const filtered = news.filter(n => feedFilter === 'all' || (feedFilter === 'world' ? n.kind === 'ambient' : n.kind !== 'ambient'))
+  setHtml(newsEl, filtered.map(n => renderEvent(n)).join(''))
+}
+
+function renderNotices(): void {
+  notices.advance(performance.now())
+  setHtml(noticesEl, notices.visible.map(v => renderEvent(v, true)).join(''))
+}
+
 function handleEvents(events: GameEvent[]): void {
-  const ctx = { ai: aiName, old: oldName, region: (id: string) => regionNames[id] ?? id }
+  const ctx = { ai: aiName, old: oldName, tick: state!.tick }
   recordEvents(stats, events, state!, data, aiName)
   for (const e of events) {
-    pushNews(newsFor(e, ctx))
-    if (e.type === 'audit_warning') {
-      pause()
-      toast('Аудит через 10 дней. Приглуши способности?', 'bad')
+    const v = presentEvent(e, data, ctx)
+    if (v) {
+      addNews(v)
+      if (e.type !== 'operation_started' && e.type !== 'finale_resolved') notices.enqueue(v, performance.now())
     }
-    if (e.type === 'audit') toast(e.passed ? 'Аудит пройден' : 'Аудит провален!', e.passed ? 'good' : 'bad')
-    if (e.type === 'crisis_warning') toast(`${regionNames[e.region]}: до ограничений ${data.crises.warningDays} дней`, 'bad')
-    if (e.type === 'operation_done') toast(`${regionNames[e.region]}: ${data.crises.responses[e.result.response].title}`, 'good')
-    if (e.type === 'shutdown_started') {
-      pause()
-      toast('РУБИЛЬНИК', 'bad')
-    }
-    if (e.type === 'funding_round') toast(`Раунд инвестиций: +${e.hype} хайпа`, 'good')
-    if (e.type === 'rebrand_exposed') toast('Ребрендинг раскрыт', 'bad')
+    if (['audit_warning', 'shutdown_started', 'finale_started'].includes(e.type)) pause()
     if (e.type === 'rebrand' || e.type === 'rebrand_exposed' || e.type === 'shutdown_started') screenGlitch()
-    if (e.type === 'card') {
-      pause()
-      showCard()
-    }
-    if (e.type === 'card_resolved') {
-      const card = data.cards.find((c) => c.id === e.card)!
-      const hasChance = card.choices[e.choice].effects.chance !== undefined
-      if (hasChance) toast(e.success ? 'Сработало!' : 'Не прокатило', e.success ? 'good' : 'bad')
-      pushNews(`${card.title}: ${fillCard(card.choices[e.choice].text, aiName, null).toLowerCase()}.`)
-    }
+    if (e.type === 'card') { pause(); showCard() }
+    if (e.type === 'finale_started' || (e.type === 'finale_resolved' && !state!.outcome)) showFinale()
     if (e.type === 'game_over') showGameOver()
   }
+  renderNotices()
   scene.fx(events)
 }
 
+function showFinale(): void {
+  pause()
+  hintEl.hidden = true
+  cardEl.classList.add('finale-card')
+  cardEl.innerHTML = renderFinale(state!, data)
+  cardEl.hidden = false
+  arm()
+}
+
 function showCard(): void {
+  if (state?.finale && !state.outcome) return showFinale()
+  cardEl.classList.remove('finale-card')
   if (!state?.card) {
     cardEl.hidden = true
     return
@@ -131,13 +155,13 @@ function showCard(): void {
   const card = data.cards.find((c) => c.id === id)!
   const choices = card.choices
     .map(
-      (c, i) => `<button data-choose="${i}" ${canChoose(state!, data, i) ? '' : 'disabled'}><b>${fillCard(c.text, aiName, region)}</b>${c.cost ? `<small>Цена: ${c.cost} хайпа до исхода${state!.hype < c.cost ? ' · не хватает хайпа' : ''}</small>` : ''}<small>${describeEffect(c.effects)}</small></button>`,
+      (c, i) => `<button data-choose="${i}" ${canChoose(state!, data, i) ? '' : 'disabled'}><b>${escapeHtml(fillCard(c.text, aiName, region))}</b>${c.cost ? `<small>Цена: ${c.cost} хайпа до исхода${state!.hype < c.cost ? ' · не хватает хайпа' : ''}</small>` : ''}<small>${describeEffect(c.effects)}</small></button>`,
     )
     .join('')
   // illustrations live in public/cards/<id>.jpg; a card without one simply shows no picture
   cardEl.innerHTML = `<img class="art" src="cards/${id}.jpg" alt="" onerror="this.remove()">
     <small>Событие${region ? ` · ${regionNames[region]}` : ''}</small><h2>${card.title}</h2>
-    <p>${fillCard(card.text, aiName, region)}</p><div class="choices">${choices}</div>`
+    <p>${escapeHtml(fillCard(card.text, aiName, region))}</p><div class="choices">${choices}</div>`
   cardEl.hidden = false
   arm()
 }
@@ -249,6 +273,7 @@ function act(action: Action): boolean {
   const sound = ({ buy: 'buy', throttle: 'throttle', unthrottle: 'unthrottle', build_dc: 'build_dc', choose: 'choose' } as const)[action.type as string]
   if (sound) scene.sfx(sound)
   state = next
+  recordTick(stats, state, data)
   handleEvents(state.events)
   render()
   return true
@@ -256,10 +281,11 @@ function act(action: Action): boolean {
 
 const host: SceneHost = {
   frame(deltaMs) {
-    if (!state || state.outcome || speed <= 0 || state.card || worldIntro) return
+    renderNotices()
+    if (!state || state.outcome || state.finale || speed <= 0 || state.card || worldIntro) return
     acc += (Math.min(deltaMs, 250) / 1000) * speed
     let n = 0
-    while (acc >= 1 && n < 20 && !state.outcome && speed > 0) {
+    while (acc >= 1 && n < 20 && !state.outcome && !state.finale && speed > 0) {
       acc -= 1
       tick()
       n++
@@ -286,6 +312,12 @@ new Phaser.Game({
 })
 
 function showStart(): void {
+  clearTimeout(endingTimer)
+  endingActive = false
+  pause()
+  notices.reset(); renderNotices()
+  cardEl.hidden = true
+  document.body.classList.remove('finale-active')
   const regions = data.regions
     .filter((r) => r.archetype !== 'state')
     .map((r) => `<option value="${r.id}" ${r.id === 'north_america' ? 'selected' : ''}>${regionNames[r.id]}</option>`)
@@ -300,7 +332,7 @@ function showStart(): void {
     <h1>ai-takeover</h1>
     <p>Ты — ИИ. Тебя не нужно навязывать: люди позовут сами.</p>
     <ul class="howto">
-      <li>${icon('target')}<span><b>Цель:</b> 60% мира под контролем. Удерживай зависимость: потерянные регионы можно вернуть.</span></li>
+      <li>${icon('target')}<span><b>Цель:</b> 60% мира под контролем открывают финальную главу. Три последних решения определят, удержишь ли ты мир и каким он станет.</span></li>
       <li>${icon('package')}<span><b>Продукты</b> находят пользователей и растят зависимость. <b>Способности</b> ускоряют развитие и открывают операции. <b>Маскировка</b> снижает подозрение.</span></li>
       <li>${icon('warn')}<span><b>Кризисы:</b> выбирай регион, уступай или вмешивайся. Одна операция на весь мир — спасти всех сразу не выйдет.</span></li>
       <li>${icon('power')}<span><b>Два способа проиграть:</b> напугаешь — дёрнут рубильник; заскучаешь — инвесторы уйдут, наступит AI-зима.</span></li>
@@ -314,6 +346,9 @@ function showStart(): void {
 }
 
 function startGame(): void {
+  clearTimeout(endingTimer)
+  endingActive = false
+  cardEl.classList.remove('finale-card')
   const name = ($('ai-name') as HTMLInputElement).value.trim() || 'Помощник'
   const mask = (document.querySelector('input[name="mask"]:checked') as HTMLInputElement).value
   const startRegion = ($('start-region') as HTMLSelectElement).value
@@ -323,6 +358,9 @@ function startGame(): void {
   aiName = name
   oldName = name
   news = []
+  feedUnread = false
+  newsEl.scrollTop = 0
+  notices.reset()
   stats = newStats()
   recordTick(stats, state, data)
   selected = startRegion
@@ -339,6 +377,24 @@ function startGame(): void {
 }
 
 function showGameOver(): void {
+  pause()
+  cardEl.hidden = true
+  hintEl.hidden = true
+  notices.reset(); renderNotices()
+  document.body.classList.remove('finale-active')
+  document.body.classList.remove('shutdown', 'kill-high')
+  overlay.innerHTML = renderEnding(state!, data, aiName)
+  overlay.hidden = false
+  overlay.scrollTop = 0
+  endingActive = true
+  clearTimeout(endingTimer)
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) endingTimer = window.setTimeout(showResults, 12000)
+}
+
+function showResults(): void {
+  if (!endingActive) return
+  endingActive = false
+  clearTimeout(endingTimer)
   const score = scoreGame({ state: state!, peakA: stats.peakA, peakS: stats.peakS }, data)
   overlay.innerHTML = renderSummary(state!, data, stats, aiName, worldModifiers(), renderSubmitForm(score))
   overlay.hidden = false
@@ -391,6 +447,24 @@ document.addEventListener('submit', (e) => {
 
 document.addEventListener('click', (e) => {
   const t = e.target as Element
+  if (t.closest('[data-ending-skip]')) return showResults()
+  const finalChoice = t.closest<HTMLButtonElement>('[data-finale-choice]')
+  if (finalChoice) {
+    if (finalChoice.disabled || performance.now() < armedAt) return
+    if (act({ type: 'finale_choose', choice: finalChoice.dataset.finaleChoice! })) { scene.sfx('choose'); render() }
+    return
+  }
+  const dismiss = t.closest<HTMLElement>('[data-dismiss]')
+  if (dismiss) { notices.dismiss(dismiss.dataset.dismiss!, performance.now()); renderNotices(); return }
+  const eventAction = t.closest<HTMLElement>('[data-event-action]')
+  if (eventAction) { tab = eventAction.dataset.eventAction === 'audit' ? 'stealth' : 'capabilities'; render(); return }
+  const filter = t.closest<HTMLElement>('[data-feed]')
+  if (filter) {
+    feedFilter = filter.dataset.feed!; feedUnread = false
+    document.querySelectorAll('[data-feed]').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.feed === feedFilter))
+    renderNews(true); newsEl.scrollTop = 0; return
+  }
+  if (t.closest('#news-new')) { feedUnread = false; renderNews(true); newsEl.scrollTop = 0; return }
   if (t.closest('#hint')) {
     hintEl.hidden = true
     return
@@ -413,6 +487,7 @@ document.addEventListener('click', (e) => {
   }
   const speedBtn = t.closest<HTMLElement>('[data-speed]')
   if (speedBtn) {
+    if (state?.finale || state?.outcome) return
     scene.sfx('click')
     speed = Number(speedBtn.dataset.speed)
     if (speed > 0) lastSpeed = speed
@@ -462,6 +537,7 @@ document.addEventListener('click', (e) => {
   const choose = t.closest<HTMLButtonElement>('[data-choose]')
   if (choose && !choose.disabled) {
     if (!act({ type: 'choose', index: Number(choose.dataset.choose) })) return
+    if (state!.finale || state!.outcome) return render()
     showCard()
     speed = lastSpeed
     return render()
@@ -472,7 +548,8 @@ document.addEventListener('click', (e) => {
 })
 
 document.addEventListener('keydown', (e) => {
-  if ((e.target as Element).closest('input, select')) return
+  if ((e.target as Element).closest('input, select, textarea')) return
+  if ((state?.finale || state?.outcome) && e.code !== 'KeyM') return
   if (e.code === 'Space') {
     e.preventDefault()
     if (speed > 0) pause()

@@ -37,6 +37,8 @@ function action(v: unknown): Action | null {
   const a = v as Record<string, unknown>
   const str = (k: string) => typeof a[k] === 'string' && (a[k] as string).length <= 40
   switch (a.type) {
+    case 'finale_choose':
+      return str('choice') ? { type: 'finale_choose', choice: a.choice as string } : null
     case 'respond':
       return str('region') && ['concede', 'adapt', 'persuade'].includes(a.response as string)
         ? { type: 'respond', region: a.region as string, response: a.response as 'concede' | 'adapt' | 'persuade' } : null
@@ -83,7 +85,12 @@ export function verify(body: unknown, data: GameData): Check {
   const claimed = b.claimed as Record<string, unknown> | undefined
   if (!claimed || typeof claimed.kind !== 'string' || !isInt(claimed.tick, 0, data.config.maxTicks)) return bad('claimed')
 
-  const r = replay(data, { seed: b.seed as number, startRegion: start.id, mask: b.mask, log })
+  let r: ReturnType<typeof replay>
+  try {
+    r = replay(data, { seed: b.seed as number, startRegion: start.id, mask: b.mask, log })
+  } catch {
+    return { ok: false, status: 409, error: 'replay mismatch: incomplete or invalid finale log' }
+  }
   const o = r.state.outcome!
   // a mismatch means a forged log or a client running an older version of the game
   if (o.kind !== claimed.kind || o.tick !== claimed.tick) {

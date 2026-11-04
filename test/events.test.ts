@@ -51,3 +51,19 @@ test('data rejects negative event prices and unknown operation capabilities', ()
   raw.crises.responses.adapt.capability = 'missing'
   assert.throws(() => buildData(raw), /capability/)
 })
+
+test('event results include applied wave postponement and shutdown deadline changes', () => {
+  const s=fresh()
+  s.shutdown={active:true,startedAt:0,nextAt:100}
+  s.card={id:'fridge_escape',region:null}
+  assert.ok(applyAction(s,data,{type:'choose',index:1}))
+  const e=s.events.find(e=>e.type==='card_resolved')!
+  assert.ok(e.type==='card_resolved' && e.changes.some(x=>x.metric==='nextWave' && x.before===100 && x.after===125))
+  const d=structuredClone(data)
+  const card=d.cards.find(c=>c.id==='un_summit')!
+  card.choices[0].effects={shortenShutdown:30}
+  s.card={id:card.id,region:null};s.hype=100
+  assert.ok(applyAction(s,d,{type:'choose',index:0}))
+  const last=s.events.filter(e=>e.type==='card_resolved').at(-1)!
+  assert.ok(last.type==='card_resolved' && last.changes.some(x=>x.metric==='shutdownDeadline' && x.after-x.before===-30))
+})

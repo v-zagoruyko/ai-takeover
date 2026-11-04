@@ -8,6 +8,7 @@
     <meta name="robots" content="noindex" />
     <link rel="icon" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/game/style.css" />
+    <link rel="stylesheet" href="/src/game/narrative.css" />
   </head>
   <body>
     <div id="game"></div>
@@ -26,7 +27,11 @@
     </div>
     <div id="tip" hidden></div>
     <div id="hint" hidden></div>
-    <div id="news" class="hud"></div>
+    <section id="chronicle" class="hud" aria-label="Хроника партии">
+      <div class="chronicle-head"><b>ХРОНИКА</b><nav aria-label="Фильтр хроники"><button data-feed="important">Важное</button><button data-feed="all" class="active">Все</button><button data-feed="world">Мир</button></nav><button id="news-new" hidden>Новые сообщения</button></div>
+      <div id="news" tabindex="0"></div>
+    </section>
+    <section id="notices" aria-label="Оперативные сообщения" aria-live="polite"></section>
     <div id="toast"></div>
     <div id="card" class="event-card" hidden></div>
     <div id="overlay" hidden></div>

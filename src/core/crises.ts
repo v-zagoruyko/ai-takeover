@@ -48,6 +48,8 @@ export function respondToCrisis(st: GameState, data: GameData, region: string, r
   if (responseUnavailable(st, data, region, response)) return false
   const rule = data.crises.responses[response]
   st.hype -= rule.cost
+  if (response === 'concede') st.history.concessions++
+  if (response === 'persuade') st.history.coercion++
   st.events.push({ type: 'operation_started', region, response, cost: rule.cost })
   const before = snapshot(st.regions[region])
   if (response === 'concede') {
