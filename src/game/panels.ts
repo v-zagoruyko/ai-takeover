@@ -72,10 +72,10 @@ function computeBlock(v: View): string {
   const caps = state.upgrades.map((id) => data.upgrades[id]).filter((u) => u.branch === 'capabilities')
   const name = (u: Upgrade) => esc(upgradeText[u.id]?.name ?? u.name)
   const seg = (u: Upgrade) =>
-    `<span class="seg on" style="flex:${u.effects.cap ?? 1}" title="${name(u)}">${icon(upgradeIcon[u.id] ?? 'zap')}<small>${name(u)}</small></span>`
+    `<span class="seg on">${icon(upgradeIcon[u.id] ?? 'zap')}<small>${name(u)}</small><b>${u.effects.cap ?? 1} слот.</b></span>`
   const active = caps.filter((u) => dv.activeCaps.includes(u.id))
   const free = dv.capacity - dv.computeUsed
-  const slots = [...active.map(seg), free > 0 ? `<span class="seg free" style="flex:${free}"><small>свободно ${free}</small></span>` : ''].join('')
+  const slots = active.map(seg).join('')
   const starved = caps.filter((u) => !dv.activeCaps.includes(u.id) && !state.throttled.includes(u.id))
   const notes = [
     ...starved.map((u) => `<span class="chip bad">${icon('warn')}${name(u)}: нужно ${u.effects.cap} слот.</span>`),
@@ -91,7 +91,8 @@ function computeBlock(v: View): string {
     : `<p class="hint">Выбери регион на карте, чтобы построить там дата-центр</p>`
   return `<section class="block">
     <div class="block-h" data-tip="compute">${icon('cpu')}Вычисления <b>${dv.computeUsed}/${dv.capacity}</b>${icon('info', 'q')}</div>
-    <div class="slots">${slots || '<span class="seg free" style="flex:1"><small>способностей пока нет</small></span>'}</div>
+    <small class="compute-free">Свободно ${free} ${plural(free, 'слот', 'слота', 'слотов')}</small>
+    ${active.length ? `<details class="compute-details" data-detail="compute-abilities"><summary>Активные способности · ${active.length}</summary><div class="slots">${slots}</div></details>` : ''}
     ${notes ? `<div class="chips">${notes}</div>` : ''}
     ${build}</section>`
 }

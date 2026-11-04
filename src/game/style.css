@@ -55,11 +55,13 @@ button.on:hover:not(:disabled) { background: #5ee6d8; }
 .block-h .chips { margin: 0 0 0 auto; }
 .meta { display: flex !important; align-items: center; gap: 5px; margin-top: 7px; }
 
-.slots { display: flex; gap: 3px; margin: 8px 0 6px; min-height: 30px; }
-.seg { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 0 4px; border-radius: 6px; font-size: 11px; overflow: hidden; }
-.seg small { color: inherit !important; font-size: 11px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compute-free { margin-top: 4px; }
+.compute-details { margin-top: 7px; }
+.slots { display: grid; gap: 3px; margin: 8px 0 6px; }
+.seg { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 7px; border-radius: 6px; font-size: 11px; }
+.seg small { flex: 1; min-width: 0; color: inherit !important; font-size: 11px !important; overflow-wrap: anywhere; }
+.seg b { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
 .seg.on { background: rgba(46, 214, 196, .18); border: 1px solid rgba(46, 214, 196, .5); color: #8ff0e6; }
-.seg.free { border: 1px dashed #3a4258; color: #5b6378; }
 .build { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 6px; }
 .build .cost, .up .cost { margin-left: auto; display: flex; align-items: center; gap: 3px; color: #ffd166; font-weight: 700; }
 .hint { color: #8a93a8; margin: 6px 0 0; font-size: 12px; }
@@ -91,18 +93,18 @@ button.on:hover:not(:disabled) { background: #5ee6d8; }
 .up-body { flex: 1; min-width: 0; }
 .up-body b { font-weight: 650; }
 .up .need { display: flex !important; align-items: center; gap: 4px; margin-top: 4px; }
-.owned { display: flex; align-items: center; gap: 8px; padding: 5px 8px; margin: 3px 0; border-radius: 8px; background: rgba(46, 214, 196, .06); color: #c4f5ef; }
-.owned > .i { color: #2ed6c4; }
+.owned { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 5px 8px; margin: 3px 0; border-radius: 8px; background: rgba(46, 214, 196, .06); color: #c4f5ef; }
+.owned > .i { margin-top: 2px; color: #2ed6c4; }
 .owned .ok { margin-left: auto; color: #8fe3b0; }
-.owned span { flex: 1; min-width: 0; }
-.owned.cap button { padding: 2px 8px; font-size: 12px; }
+.owned.cap button { grid-column: 2 / -1; justify-self: start; padding: 2px 8px; font-size: 12px; }
 .owned.cap.off { background: rgba(255,255,255,.04); color: #8a93a8; }
 .owned.cap.starved { background: rgba(255, 92, 110, .08); }
 .owned.cap.starved small { color: #ff9aa5; }
-.owned-body { flex: 1; min-width: 0; }
+.owned-body { min-width: 0; overflow-wrap: anywhere; }
 .owned details { margin-top: 4px; }
-.owned summary, .crisis summary { cursor: pointer; font-size: 12px; color: #a9bcd9; }
-.owned .chip, .up .chip { white-space: normal; }
+.owned details > small { margin-top: 5px; }
+.owned summary, .crisis summary, .compute-details summary { cursor: pointer; font-size: 12px; color: #a9bcd9; }
+.owned .chip, .up .chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .crisis { margin-top: 10px; border-top: 1px solid #48516a; padding-top: 8px; }
 .crisis.warning > b { color: #ffd166; }
 .crisis.restricted > b { color: #ff9aa5; }
