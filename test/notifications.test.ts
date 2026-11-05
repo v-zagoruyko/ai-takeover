@@ -24,3 +24,12 @@ test('ordinary notice gets six full seconds after it becomes visible', () => {
   q.advance(15000)
   assert.ok(!q.visible.some(x => x.id === 'ordinary'))
 })
+
+test('critical notices leave the map without manual dismissal', () => {
+  const q = new NoticeQueue()
+  q.enqueue({ id: 'audit', severity: 'critical' }, 0)
+  q.advance(11999)
+  assert.equal(q.visible.length, 1)
+  q.advance(12000)
+  assert.equal(q.visible.length, 0)
+})

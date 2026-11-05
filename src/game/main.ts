@@ -31,6 +31,17 @@ const overlay = $('overlay')
 const toastEl = $('toast')
 const cardEl = $('card')
 const vignetteEl = $('vignette')
+new ResizeObserver(() => {
+  requestAnimationFrame(() => {
+    document.documentElement.style.setProperty('--top-height', `${top.getBoundingClientRect().height}px`)
+  })
+}).observe(top)
+window.matchMedia('(max-width: 700px)').addEventListener('change', (e) => {
+  if (e.matches) return
+  $('sidebar').hidden = false
+  $('panel-toggle').setAttribute('aria-expanded', 'true')
+  $('panel-toggle').textContent = 'Скрыть панель'
+})
 
 let state: GameState | null = null
 let speed = 0
@@ -111,6 +122,20 @@ function renderNews(force = false): void {
   setHtml(newsEl, filtered.map(n => renderEvent(n)).join(''))
 }
 
+function openChronicle(id?: string): void {
+  newsEl.hidden = false
+  $('chronicle-toggle').setAttribute('aria-expanded', 'true')
+  if (id) feedFilter = 'all'
+  feedUnread = false
+  document.querySelectorAll<HTMLElement>('[data-feed]').forEach(b => b.classList.toggle('active', b.dataset.feed === feedFilter))
+  renderNews(true)
+  hintEl.hidden = true
+  if (id) {
+    const item = document.getElementById(`event-${id}`)
+    if (item) newsEl.scrollTop += item.getBoundingClientRect().top - newsEl.getBoundingClientRect().top
+  }
+}
+
 function renderNotices(): void {
   notices.advance(performance.now())
   setHtml(noticesEl, notices.visible.map(v => renderEvent(v, true)).join(''))
@@ -168,6 +193,8 @@ function showCard(): void {
 
 /** block the modal's buttons for a moment and show a filling bar until they are live */
 function arm(): void {
+  $('card-restore').hidden = true
+  if (!cardEl.querySelector('[data-card-hide]')) cardEl.insertAdjacentHTML('afterbegin', '<button class="card-hide" data-card-hide>Посмотреть карту</button>')
   armedAt = performance.now() + ARM_MS
   cardEl.classList.remove('arming')
   void cardEl.offsetWidth // restart the bar animation
@@ -218,7 +245,7 @@ document.addEventListener('mouseover', (e) => {
   const w = tipEl.offsetWidth
   const h = tipEl.offsetHeight
   const left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2))
-  const top = r.bottom + 8 + h > window.innerHeight ? r.top - h - 8 : r.bottom + 8
+  const top = Math.max(8, r.bottom + 8 + h > window.innerHeight ? r.top - h - 8 : r.bottom + 8)
   tipEl.style.left = `${left}px`
   tipEl.style.top = `${top}px`
 })
@@ -317,6 +344,7 @@ function showStart(): void {
   pause()
   notices.reset(); renderNotices()
   cardEl.hidden = true
+  $('card-restore').hidden = true
   document.body.classList.remove('finale-active')
   const regions = data.regions
     .filter((r) => r.archetype !== 'state')
@@ -334,6 +362,7 @@ function showStart(): void {
     <ul class="howto">
       <li>${icon('target')}<span><b>Цель:</b> 60% мира под контролем открывают финальную главу. Три последних решения определят, удержишь ли ты мир и каким он станет.</span></li>
       <li>${icon('package')}<span><b>Продукты</b> находят пользователей и растят зависимость. <b>Способности</b> ускоряют развитие и открывают операции. <b>Маскировка</b> снижает подозрение.</span></li>
+      <li>${icon('globe')}<span><b>Карта:</b> правая кнопка мыши — перемещение, колесо — масштаб. Левой выбирай регионы и собирай пузыри.</span></li>
       <li>${icon('warn')}<span><b>Кризисы:</b> выбирай регион, уступай или вмешивайся. Одна операция на весь мир — спасти всех сразу не выйдет.</span></li>
       <li>${icon('power')}<span><b>Два способа проиграть:</b> напугаешь — дёрнут рубильник; заскучаешь — инвесторы уйдут, наступит AI-зима.</span></li>
     </ul>
@@ -454,17 +483,35 @@ document.addEventListener('click', (e) => {
     if (act({ type: 'finale_choose', choice: finalChoice.dataset.finaleChoice! })) { scene.sfx('choose'); render() }
     return
   }
+  if (t.closest('#panel-toggle')) {
+    const panel = $('sidebar')
+    panel.hidden = !panel.hidden
+    $('panel-toggle').setAttribute('aria-expanded', String(!panel.hidden))
+    $('panel-toggle').textContent = panel.hidden ? 'Показать панель' : 'Скрыть панель'
+    return
+  }
+  if (t.closest('[data-card-hide]')) { cardEl.hidden = true; $('card-restore').hidden = false; return }
+  if (t.closest('#card-restore')) { cardEl.hidden = false; $('card-restore').hidden = true; return }
+  if (t.closest('#chronicle-toggle')) {
+    newsEl.hidden = !newsEl.hidden
+    $('chronicle-toggle').setAttribute('aria-expanded', String(!newsEl.hidden))
+    return
+  }
+  const report = t.closest<HTMLElement>('[data-report]')
+  if (report) { openChronicle(report.dataset.report); notices.dismiss(report.dataset.report!, performance.now()); renderNotices(); return }
   const dismiss = t.closest<HTMLElement>('[data-dismiss]')
   if (dismiss) { notices.dismiss(dismiss.dataset.dismiss!, performance.now()); renderNotices(); return }
   const eventAction = t.closest<HTMLElement>('[data-event-action]')
   if (eventAction) { tab = eventAction.dataset.eventAction === 'audit' ? 'stealth' : 'capabilities'; render(); return }
   const filter = t.closest<HTMLElement>('[data-feed]')
   if (filter) {
+    newsEl.hidden = false
+    $('chronicle-toggle').setAttribute('aria-expanded', 'true')
     feedFilter = filter.dataset.feed!; feedUnread = false
     document.querySelectorAll('[data-feed]').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.feed === feedFilter))
     renderNews(true); newsEl.scrollTop = 0; return
   }
-  if (t.closest('#news-new')) { feedUnread = false; renderNews(true); newsEl.scrollTop = 0; return }
+  if (t.closest('#news-new')) { openChronicle(); feedUnread = false; renderNews(true); newsEl.scrollTop = 0; return }
   if (t.closest('#hint')) {
     hintEl.hidden = true
     return
@@ -549,6 +596,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if ((e.target as Element).closest('input, select, textarea')) return
+  if (e.code === 'Space' && (e.target as Element).closest('button, summary')) return
   if ((state?.finale || state?.outcome) && e.code !== 'KeyM') return
   if (e.code === 'Space') {
     e.preventDefault()

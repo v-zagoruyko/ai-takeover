@@ -81,9 +81,6 @@ const LABEL_OFFSET: Record<string, [number, number]> = {
   north_africa: [-30, 25],
 }
 
-// HUD covers the right panel and the top bar; the map is centred in what is left
-const HUD = { right: 380, top: 56 }
-
 export class MapScene extends Phaser.Scene {
   private host: SceneHost
   private data_!: GameData
@@ -190,8 +187,8 @@ export class MapScene extends Phaser.Scene {
       const selLine = this.outline(rings, COLORS.select, 2).setDepth(4).setVisible(false)
 
       fill.setInteractive({ pixelPerfect: true, useHandCursor: true })
-      fill.on('pointerup', () => {
-        if (!this.dragged) this.host.select(r.id)
+      fill.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.button === 0 && !this.dragged) this.host.select(r.id)
       })
       fill.on('pointerover', () => this.regions.get(r.id)!.label.setAlpha(1))
       fill.on('pointerout', () => this.regions.get(r.id)!.label.setAlpha(0.85))
@@ -252,13 +249,21 @@ export class MapScene extends Phaser.Scene {
     const fit = () => {
       const w = this.scale.width
       const h = this.scale.height
-      const right = w > 900 ? HUD.right : 0
-      this.fitZoom = Math.min((w - right) / MAP.width, (h - HUD.top) / MAP.height) * 0.96
+      const panel = document.querySelector<HTMLElement>('.panel')!
+      const top = document.getElementById('top')!.getBoundingClientRect().height
+      const right = w > 700 ? panel.getBoundingClientRect().width : 0
+      const bottom = w <= 700 && !panel.hidden ? panel.getBoundingClientRect().height : 0
+      this.fitZoom = Math.min((w - right) / MAP.width, (h - top - bottom) / MAP.height) * 0.96
       cam.setZoom(this.fitZoom)
-      cam.centerOn(MAP.width / 2 + right / 2 / this.fitZoom, MAP.height / 2 - HUD.top / 2 / this.fitZoom)
+      cam.centerOn(MAP.width / 2 + right / 2 / this.fitZoom, MAP.height / 2 - (top - bottom) / 2 / this.fitZoom)
     }
     fit()
     this.scale.on('resize', fit)
+    const layoutObserver = new ResizeObserver(() => requestAnimationFrame(fit))
+    layoutObserver.observe(document.getElementById('top')!)
+    layoutObserver.observe(document.querySelector('.panel')!)
+    this.events.once('shutdown', () => layoutObserver.disconnect())
+    this.input.mouse?.disableContextMenu()
 
     this.input.on('wheel', (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
       const z0 = cam.zoom
@@ -368,7 +373,8 @@ export class MapScene extends Phaser.Scene {
       c.setSize(64, 64)
       // container hit areas are in local space with the origin at the top-left corner of setSize, not at the centre
       c.setInteractive(new Phaser.Geom.Circle(32, 32, 36), Phaser.Geom.Circle.Contains)
-      c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+      c.on('pointerdown', (p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
+        if (p.button !== 0) return
         e.stopPropagation()
         this.popped.add(b.id)
         this.bursts[b.poisoned ? 'purple' : 'gold'].explode(18, c.x, c.y)

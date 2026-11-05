@@ -67,3 +67,15 @@ test('event results include applied wave postponement and shutdown deadline chan
   const last=s.events.filter(e=>e.type==='card_resolved').at(-1)!
   assert.ok(last.type==='card_resolved' && last.changes.some(x=>x.metric==='shutdownDeadline' && x.after-x.before===-30))
 })
+
+test('compact notices link to the full report, which retains its detail and action', async () => {
+  const { renderEvent } = await import('../src/game/events.ts')
+  const report = { id: 'audit-1', tick: 20, kind: 'audit', severity: 'critical' as const, title: 'Audit failed', body: 'Detailed audit findings', changes: [{ metric: 'hype', before: 10, after: 5 }], action: 'Review camouflage' }
+  const compact = renderEvent(report, true)
+  assert.ok(compact.includes('data-report="audit-1"'))
+  assert.ok(!compact.includes(report.body))
+  const full = renderEvent(report)
+  assert.ok(full.includes(report.body))
+  assert.ok(full.includes('Хайп −5'))
+  assert.ok(full.includes('data-event-action="audit"'))
+})

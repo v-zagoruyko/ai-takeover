@@ -108,3 +108,89 @@ body.finale-active .panel { opacity:.35; pointer-events:none; }
 @keyframes ending-return { 0% { filter:brightness(.2) } 35% { filter:brightness(.4) } 70%,100% { filter:brightness(1) } }
 @keyframes ending-winter { from { filter:saturate(1) brightness(.95); transform:translate(-50%,-50%) scale(1.015) } to { filter:saturate(.3) brightness(.7); transform:translate(-50%,-50%) scale(1.08) } }
 @media (prefers-reduced-motion:reduce) { .ending-scene * { animation:none !important } }
+
+/* Keep reports in the sidebar; the map remains available during dispatches. */
+:root { --top-height: 56px; --panel-width: 380px; }
+.panel { top: var(--top-height); width: var(--panel-width); overscroll-behavior: contain; scrollbar-gutter: stable; }
+.panel[hidden] { display: none; }
+#notices { position: static; width: auto; display: grid; gap: 6px; max-height: 230px; overflow-y: auto; margin-bottom: 8px; }
+#notices:empty { display: none; }
+#notices .event-item { padding: 9px 10px; box-shadow: none; }
+#notices .event-item h3 { margin: 5px 0; font-size: 14px; }
+.event-meta { font-size: 11px; letter-spacing: .04em; flex-wrap: wrap; gap: 6px; color: #a0aebc; }
+.event-change { font-size: 12px; }
+.notice-actions { margin-top: 6px; flex-wrap: wrap; gap: 5px; }
+.notice-actions:empty { display: none; }
+.notice-actions button { font-size: 12px; min-height: 30px; }
+#chronicle { left: 12px; bottom: 12px; width: min(440px, calc(100vw - var(--panel-width) - 24px)); }
+.chronicle-head { padding: 6px 10px; gap: 6px; flex-wrap: wrap; }
+#chronicle-toggle { color: #c4d4de; font-size: 12px; font-weight: 700; }
+#chronicle-toggle::before { content: '▸ '; }
+#chronicle-toggle[aria-expanded=true]::before { content: '▾ '; }
+.chronicle-head button { min-height: 30px; font-size: 12px; }
+#news { max-height: min(250px, 35dvh); border: 0; border-radius: 0; }
+#news[hidden] { display: none; }
+#news .event-item:target { background: #5be1d014; }
+#legend { right: calc(var(--panel-width) + 12px); max-width: min(420px, calc(100vw - var(--panel-width) - 480px)); }
+#hint { top: calc(var(--top-height) + 12px); left: 12px; transform: none; max-width: min(370px, calc(100vw - var(--panel-width) - 24px)); font-size: 12px; padding: 8px 10px; animation: dispatch-in .25s ease-out; }
+#toast { top: calc(var(--top-height) + 12px); max-width: calc(100vw - 24px); font-size: 14px; }
+.event-card { left: calc((100vw - var(--panel-width)) / 2); top: calc(var(--top-height) + 12px); transform: translateX(-50%); width: min(440px, calc(100vw - var(--panel-width) - 24px)); max-height: calc(100dvh - var(--top-height) - 24px); padding: 16px; animation: none; }
+.event-card .art { width: calc(100% + 32px); margin: -16px -16px 12px; max-height: 160px; }
+.event-card h2 { font-size: 20px; line-height: 1.2; }
+.card-hide { position: sticky; top: 0; z-index: 1; display: block; margin: 0 0 10px auto; background: #151a25; min-height: 32px; font-size: 12px; }
+.event-card:has(.art) .card-hide { position: relative; }
+#card-restore { position: fixed; z-index: 4; top: calc(var(--top-height) + 10px); left: 12px; padding: 10px 14px; border-color: #ffd166; }
+#card-restore[hidden] { display: none; }
+.event-card.finale-card { left: calc((100vw - var(--panel-width)) / 2); width: min(760px, calc(100vw - var(--panel-width) - 24px)); max-height: calc(100dvh - var(--top-height) - 24px); padding: 20px; }
+.finale-card h2 { font-size: 26px; }
+.finale-card .finale-intro { margin-bottom: 12px; line-height: 1.5; }
+.finale-progress { margin-bottom: 12px; }
+.finale-heading, .finale-card > small, .finale-price, .finale-choice details, .finale-card .finale-effect, .finale-card .finale-choice > button { font-size: 12px; letter-spacing: normal; }
+.finale-choice { padding: 12px; }
+.card { width: min(540px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid #5be1d0; outline-offset: 3px; }
+button, summary, input, select { touch-action: manipulation; }
+#game canvas { touch-action: none; }
+#panel-toggle { display: none; }
+@media (max-width: 1200px) {
+  #legend { display: none; }
+  .event-card.finale-card .finale-options { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  :root { --panel-width: 330px; }
+  #top { gap: 6px 8px; padding: 6px 10px; }
+  #top .meter, #top .meter.wide { width: 130px; flex: 1 1 130px; }
+  .panel { padding: 8px; }
+  .event-card.finale-card { padding: 16px; }
+}
+@media (max-width: 700px) {
+  :root { --panel-width: 0px; }
+  .panel { top: auto; bottom: 0; width: 100%; height: 42dvh; border-top: 1px solid #353c4d; border-left: 0; }
+  #panel-toggle { display: block; position: fixed; z-index: 3; right: 10px; top: calc(var(--top-height) + 8px); min-height: 36px; font-size: 12px; }
+  #chronicle { bottom: calc(42dvh + 8px); left: 8px; width: calc(100vw - 16px); max-height: none; }
+  body:has(.panel[hidden]) #chronicle { bottom: 8px; }
+  #news { max-height: min(190px, 26dvh); }
+  .event-card, .event-card.finale-card { left: 50%; width: calc(100vw - 16px); }
+  #hint { top: calc(var(--top-height) + 50px); max-width: calc(100vw - 24px); }
+  #toast { left: 50%; }
+  .card { padding: 16px; }
+  .card h1 { font-size: 26px; }
+  .masks-pick, .cols { grid-template-columns: 1fr; }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .score-box { grid-template-columns: 1fr; }
+  .lb-form input { min-width: 0; }
+  .summary .actions { bottom: -16px; margin: 12px -16px -16px; padding: 12px 16px; }
+  .ending-content h1 { font-size: clamp(32px, 9vw, 48px); }
+  .ending-content button span { margin-left: 12px; }
+}
+@media (max-height: 650px) and (min-width: 701px) {
+  .event-card .art { max-height: 100px; }
+  #news { max-height: 180px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+@media (max-width: 700px) and (max-height: 450px) {
+  #news { max-height: max(50px, calc(58dvh - var(--top-height) - 62px)); }
+}

@@ -20,7 +20,7 @@ export class NoticeQueue<T extends Notice = Notice> {
   private fill(now: number): void {
     while (this.active.length < 3 && this.waiting.length) {
       const value = this.waiting.shift()!
-      this.active.push({ value, until: value.severity === 'critical' ? Infinity : now + 6000 })
+      this.active.push({ value, until: value.severity === 'critical' ? now + 12000 : now + 6000 })
     }
   }
 }
